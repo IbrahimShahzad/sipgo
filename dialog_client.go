@@ -167,7 +167,7 @@ func (s *DialogClientSession) buildReq(req *sip.Request) {
 			rh := req.Route()
 			if !rh.Address.Params.Has("lr") {
 				// this is strict routing
-				req.Recipient = rh.Address
+				req.Recipient = &rh.Address
 			}
 		} else if s.UA.RewriteContact {
 			req.SetDestination(s.InviteResponse.Source())
@@ -452,11 +452,11 @@ func (s *DialogClientSession) WriteBye(ctx context.Context, bye *sip.Request) er
 func newAckRequestUAC(inviteRequest *sip.Request, inviteResponse *sip.Response, body []byte) *sip.Request {
 	Recipient := &inviteRequest.Recipient
 	if contact := inviteResponse.Contact(); contact != nil {
-		Recipient = &contact.Address
+		Recipient = &contact.URI
 	}
 	ackRequest := sip.NewRequest(
 		sip.ACK,
-		*Recipient.Clone(),
+		(*Recipient).Clone(),
 	)
 	ackRequest.SipVersion = inviteRequest.SipVersion
 
@@ -514,12 +514,12 @@ func newByeRequestUAC(inviteRequest *sip.Request, inviteResponse *sip.Response, 
 	cont := inviteResponse.Contact()
 	if cont != nil {
 		// BYE is subsequent request
-		recipient = &cont.Address
+		recipient = &cont.URI
 	}
 
 	byeRequest := sip.NewRequest(
 		sip.BYE,
-		*recipient.Clone(),
+		(*recipient).Clone(),
 	)
 	byeRequest.SipVersion = inviteRequest.SipVersion
 
@@ -625,7 +625,7 @@ func (s *DialogClientCache) MatchRequestDialog(req *sip.Request) (*DialogClientS
 // This is actually not yet dialog (ID is empty)
 // You need to call WaitAnswer after for establishing dialog
 // For passing custom Invite request use WriteInvite
-func (c *DialogClientCache) Invite(ctx context.Context, recipient sip.SIPURI, body []byte, headers ...sip.Header) (*DialogClientSession, error) {
+func (c *DialogClientCache) Invite(ctx context.Context, recipient sip.URI, body []byte, headers ...sip.Header) (*DialogClientSession, error) {
 	dt, err := c.ua.Invite(ctx, recipient, body, headers...)
 	if err != nil {
 		return nil, err

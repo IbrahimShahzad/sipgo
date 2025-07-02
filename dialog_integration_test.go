@@ -29,7 +29,9 @@ func TestIntegrationDialog(t *testing.T) {
 	defer cancel()
 
 	uasContact := sip.ContactHeader{
-		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
+		NameAddress: &sip.NameAddress{
+			URI: &sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
+		},
 	}
 
 	dialogSrv := NewDialogServerCache(cli, uasContact)
@@ -45,7 +47,7 @@ func TestIntegrationDialog(t *testing.T) {
 	}
 	auth := digest.Options{
 		Method:   "INVITE",
-		URI:      uasContact.Address.Addr(),
+		URI:      uasContact.URI.Addr(),
 		Username: "alice",
 		Password: "1234",
 	}
@@ -93,7 +95,7 @@ func TestIntegrationDialog(t *testing.T) {
 	})
 
 	srv.OnAck(func(req *sip.Request, tx sip.ServerTransaction) {
-		if req.Recipient.Addr() != uasContact.Address.Addr() {
+		if req.Recipient.Addr() != uasContact.URI.Addr() {
 			tx.Respond(sip.NewResponseFromRequest(req, sip.StatusBadRequest, "Not valid SIP uri", nil))
 			return
 		}
@@ -103,7 +105,7 @@ func TestIntegrationDialog(t *testing.T) {
 	})
 
 	srv.OnBye(func(req *sip.Request, tx sip.ServerTransaction) {
-		if req.Recipient.Addr() != uasContact.Address.Addr() {
+		if req.Recipient.Addr() != uasContact.URI.Addr() {
 			tx.Respond(sip.NewResponseFromRequest(req, sip.StatusBadRequest, "Not valid SIP uri", nil))
 			return
 		}
@@ -117,7 +119,7 @@ func TestIntegrationDialog(t *testing.T) {
 		t.Log("UAS server: ", r.StartLine())
 	})
 
-	startTestServer(ctx, srv, uasContact.Address.HostPort())
+	startTestServer(ctx, srv, uasContact.URI.(*sip.SIPURI).HostPort())
 
 	// Client
 	{
@@ -128,7 +130,9 @@ func TestIntegrationDialog(t *testing.T) {
 		cli, _ := NewClient(ua)
 
 		contactHDR := sip.ContactHeader{
-			Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5088},
+			NameAddress: &sip.NameAddress{
+				URI: &sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5088},
+			},
 		}
 		dialogCli := NewDialogClientCache(cli, contactHDR)
 
@@ -141,11 +145,11 @@ func TestIntegrationDialog(t *testing.T) {
 			t.Log("UAC server: ", r.StartLine())
 		})
 
-		startTestServer(ctx, srv, contactHDR.Address.HostPort())
+		startTestServer(ctx, srv, contactHDR.URI.(*sip.SIPURI).HostPort())
 		t.Run("UAS hangup", func(t *testing.T) {
 			// INVITE
 			t.Log("UAC: INVITE")
-			sess, err := dialogCli.Invite(context.TODO(), uasContact.Address, nil)
+			sess, err := dialogCli.Invite(context.TODO(), uasContact.URI, nil)
 			require.NoError(t, err)
 			defer sess.Close()
 
@@ -167,7 +171,7 @@ func TestIntegrationDialog(t *testing.T) {
 		t.Run("UAC hangup", func(t *testing.T) {
 			// INVITE
 			t.Log("UAC: INVITE")
-			sess, err := dialogCli.Invite(context.TODO(), uasContact.Address, nil)
+			sess, err := dialogCli.Invite(context.TODO(), uasContact.URI, nil)
 			require.NoError(t, err)
 			defer sess.Close()
 
@@ -210,7 +214,9 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 	defer cancel()
 
 	uasContact := sip.ContactHeader{
-		Address: sip.SIPURI{User: "test", Host: "127.0.0.201", Port: 5099},
+		NameAddress: &sip.NameAddress{
+			URI: &sip.SIPURI{User: "test", Host: "127.0.0.201", Port: 5099},
+		},
 	}
 
 	dialogSrv := NewDialogServerCache(cli, uasContact)
@@ -246,7 +252,7 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 		t.Log("UAS server: ", r.StartLine())
 	})
 
-	startTestServer(ctx, srv, uasContact.Address.HostPort())
+	startTestServer(ctx, srv, uasContact.URI.(*sip.SIPURI).HostPort())
 
 	// Client
 	{
@@ -257,7 +263,9 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 		cli, _ := NewClient(ua)
 
 		contactHDR := sip.ContactHeader{
-			Address: sip.SIPURI{User: "test", Host: "127.0.0.201", Port: 5088},
+			NameAddress: &sip.NameAddress{
+				URI: &sip.SIPURI{User: "test", Host: "127.0.0.201", Port: 5088},
+			},
 		}
 		dialogCli := NewDialogClientCache(cli, contactHDR)
 
@@ -270,15 +278,15 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 			t.Log("UAC server: ", r.StartLine())
 		})
 
-		startTestServer(ctx, srv, contactHDR.Address.HostPort())
+		startTestServer(ctx, srv, contactHDR.URI.(*sip.SIPURI).HostPort())
 
 		t.Run("UAS BYE Error", func(t *testing.T) {
 			srv.OnBye(func(req *sip.Request, tx sip.ServerTransaction) {
 				tx.Respond(sip.NewResponseFromRequest(req, sip.StatusInternalServerError, "", nil))
 			})
 			// INVITE
-			t.Log("UAC: INVITE ", uasContact.Address.String())
-			sess, err := dialogCli.Invite(context.TODO(), uasContact.Address, nil)
+			t.Log("UAC: INVITE ", uasContact.URI.String())
+			sess, err := dialogCli.Invite(context.TODO(), uasContact.URI, nil)
 			require.NoError(t, err)
 			defer sess.Close()
 
@@ -299,8 +307,8 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 
 		t.Run("UAS ACK Error", func(t *testing.T) {
 			// INVITE
-			t.Log("UAC: INVITE ", uasContact.Address.String())
-			sess, err := dialogCli.Invite(context.TODO(), uasContact.Address, nil)
+			t.Log("UAC: INVITE ", uasContact.URI.String())
+			sess, err := dialogCli.Invite(context.TODO(), uasContact.URI, nil)
 			require.NoError(t, err)
 			defer sess.Close()
 
@@ -310,7 +318,7 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 
 			// ACK
 			t.Log("UAC: ACK")
-			sess.InviteResponse.Contact().Address.Host = "nodestination.dst"
+			sess.InviteResponse.Contact().URI.SetHost("nodestination.dst")
 			ctx, _ := context.WithTimeout(context.Background(), 1*time.Millisecond)
 			err = sess.Ack(ctx)
 			require.Error(t, err)
@@ -339,7 +347,9 @@ func TestIntegrationDialogCancel(t *testing.T) {
 	defer cancel()
 
 	uasContact := sip.ContactHeader{
-		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
+		NameAddress: &sip.NameAddress{
+			URI: &sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
+		},
 	}
 
 	dialogSrv := NewDialogServerCache(cli, uasContact)
@@ -367,7 +377,7 @@ func TestIntegrationDialogCancel(t *testing.T) {
 		t.Log("UAS server: ", r.StartLine())
 	})
 
-	startTestServer(ctx, srv, uasContact.Address.HostPort())
+	startTestServer(ctx, srv, uasContact.URI.(*sip.SIPURI).HostPort())
 
 	// Client
 	{
@@ -378,7 +388,9 @@ func TestIntegrationDialogCancel(t *testing.T) {
 		cli, _ := NewClient(ua)
 
 		contactHDR := sip.ContactHeader{
-			Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5088},
+			NameAddress: &sip.NameAddress{
+				URI: &sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5088},
+			},
 		}
 		dialogCli := NewDialogClientCache(cli, contactHDR)
 
@@ -386,11 +398,11 @@ func TestIntegrationDialogCancel(t *testing.T) {
 			t.Log("UAC server: ", r.StartLine())
 		})
 
-		startTestServer(ctx, srv, contactHDR.Address.HostPort())
+		startTestServer(ctx, srv, contactHDR.URI.(*sip.SIPURI).HostPort())
 
 		// INVITE
 		t.Log("UAC: INVITE")
-		sess, err := dialogCli.Invite(context.TODO(), uasContact.Address, nil)
+		sess, err := dialogCli.Invite(context.TODO(), uasContact.URI, nil)
 		require.NoError(t, err)
 		defer sess.Close()
 

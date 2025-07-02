@@ -25,7 +25,7 @@ func testCreateMessage(t testing.TB, rawMsg []string) sip.Message {
 }
 
 func createSimpleRequest(method sip.RequestMethod, sender sip.SIPURI, recipment sip.SIPURI, transport string) *sip.Request {
-	req := sip.NewRequest(method, recipment)
+	req := sip.NewRequest(method, &recipment)
 	params := sip.NewParams()
 	params["branch"] = sip.GenerateBranch()
 	req.AppendHeader(&sip.ViaHeader{
@@ -37,24 +37,28 @@ func createSimpleRequest(method sip.RequestMethod, sender sip.SIPURI, recipment 
 		Params:          params,
 	})
 	req.AppendHeader(&sip.FromHeader{
-		DisplayName: strings.ToUpper(sender.User),
-		Address: sip.SIPURI{
-			User:   sender.User,
-			Host:   sender.Host,
-			Port:   sender.Port,
+		NameAddress: &sip.NameAddress{
+			DisplayName: strings.ToUpper(sender.User),
+			URI: &sip.SIPURI{
+				User:   sender.User,
+				Host:   sender.Host,
+				Port:   sender.Port,
+				Params: sip.NewParams(),
+			},
 			Params: sip.NewParams(),
 		},
-		Params: sip.NewParams(),
 	})
 	req.AppendHeader(&sip.ToHeader{
-		DisplayName: strings.ToUpper(recipment.User),
-		Address: sip.SIPURI{
-			User:   recipment.User,
-			Host:   recipment.Host,
-			Port:   recipment.Port,
+		NameAddress: &sip.NameAddress{
+			DisplayName: strings.ToUpper(recipment.User),
+			URI: &sip.SIPURI{
+				User:   recipment.User,
+				Host:   recipment.Host,
+				Port:   recipment.Port,
+				Params: sip.NewParams(),
+			},
 			Params: sip.NewParams(),
 		},
-		Params: sip.NewParams(),
 	})
 	callid := sip.CallIDHeader("gotest-" + time.Now().Format(time.RFC3339Nano))
 	req.AppendHeader(&callid)

@@ -263,9 +263,9 @@ func BenchmarkIntegrationClientServer(t *testing.B) {
 
 	for _, tc := range testCases {
 		t.Run(tc.transport, func(t *testing.B) {
-			proto := "sip"
+			proto := sip.URISchemeSIP
 			if tc.encrypted {
-				proto = "sips"
+				proto = sip.URISchemeSIPS
 			}
 			shost, sport, _ := sip.ParseAddr(tc.serverAddr)
 			t.ResetTimer()
@@ -282,7 +282,7 @@ func BenchmarkIntegrationClientServer(t *testing.B) {
 					if maxInvitesPerSec != nil {
 						maxInvitesPerSec <- struct{}{}
 					}
-					req := sip.NewRequest(sip.INVITE, sip.SIPURI{User: "bob", Host: shost, Port: sport, Scheme: proto})
+					req := sip.NewRequest(sip.INVITE, &sip.SIPURI{User: "bob", Host: shost, Port: sport, Scheme: proto})
 					req.SetTransport(tc.transport)
 					tx, err := client.TransactionRequest(ctx, req)
 					require.NoError(t, err)

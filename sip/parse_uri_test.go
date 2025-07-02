@@ -222,28 +222,71 @@ func TestParseTELURI(t *testing.T) {
 	// tel:863-1234;phone-context=+1-914-555
 
 	t.Run("basic tel uri", func(t *testing.T) {
+		uri := &TELURI{}
 		str := "tel:+1-201-555-0123"
-		uri, err := ParseURI(str)
+		err := ParseTELURI(str, uri)
 		require.NoError(t, err)
-		assert.Equal(t, "+1-201-555-0123", uri.String())
-		assert.Equal(t, "tel", uri.GetScheme())
+		assert.Equal(t, "+1-201-555-0123", uri.Number)
+		assert.Equal(t, URISchemeTEL, uri.GetScheme())
 	})
 
 	t.Run("tel uri with context", func(t *testing.T) {
-		uri := SIPURI{}
+		uri := &TELURI{}
 		str := "tel:7042;phone-context=example.com"
-		err := ParseSIPURI(str, &uri)
+		err := ParseTELURI(str, uri)
 		require.NoError(t, err)
-		assert.Equal(t, "7042", uri.User)
-		assert.Equal(t, "", uri.Host)
+		assert.Equal(t, "7042", uri.Number)
+		// assert.Equal(t, "", uri.Host)
 	})
 
 	t.Run("tel uri with prefix", func(t *testing.T) {
-		uri := SIPURI{}
+		uri := &TELURI{}
 		str := "tel:863-1234;phone-context=+1-914-555"
-		err := ParseSIPURI(str, &uri)
+		err := ParseTELURI(str, uri)
 		require.NoError(t, err)
-		assert.Equal(t, "863-1234", uri.User)
-		assert.Equal(t, "", uri.Host)
+		assert.Equal(t, "863-1234", uri.Number)
+		// assert.Equal(t, "", uri.Host)
 	})
+}
+
+func TestParseUri(t *testing.T) {
+	// "sip:alice@atlanta.com",
+	// "SIP:alice@atlanta.com",
+	// "sIp:alice@atlanta.com
+	// sip:bob:secret@atlanta.com:9999;rport;transport=tcp;method=REGISTER?to=sip:bob%40biloxi.com
+	// tel:863-1234;phone-context=+1-914-555
+	tests := []struct {
+		input string
+		want  URI
+		err   error
+	}{
+		{
+			input: "sip:alice@atlanta.com",
+			want: &SIPURI{
+				User: "alice",
+				Host: "atlanta.com",
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		uri, err := ParseURI(tc.input)
+		if err != tc.err {
+			t.Errorf("err wanted %v, got %v", tc.err, err)
+			continue
+		}
+		// assert.EqualError(t, err, tc.err.Error())
+		assert.Equal(t, tc.input, uri.String())
+		got, ok := uri.(*SIPURI)
+		if !ok {
+			t.Errorf("unexepected, want %v got %v", tc.want, got)
+			continue
+		}
+		want, _ := tc.want.(*SIPURI)
+		assert.Equal(t, want.User, got.User)
+		assert.Equal(t, want.Host, got.Host)
+
+	}
+
 }

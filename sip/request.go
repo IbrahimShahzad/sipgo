@@ -11,7 +11,7 @@ import (
 type Request struct {
 	MessageData
 	Method    RequestMethod
-	Recipient SIPURI
+	Recipient URI
 
 	// Laddr is Connection local Addr used to sent request
 	Laddr Addr
@@ -21,13 +21,14 @@ type Request struct {
 // A Request-Line contains a method name, a Request-URI, and the SIP/2.0 as version
 // No headers are added. AppendHeader should be called to add Headers.
 // r.SetBody can be called to set proper ContentLength header
-func NewRequest(method RequestMethod, recipient SIPURI) *Request {
-	if recipient.Params != nil {
+func NewRequest(method RequestMethod, recipient URI) *Request {
+	if recipient.GetParams() != nil {
 		// mostly this are empty
-		recipient.Params = recipient.Params.clone()
+		// set params
+		recipient.SetParams(recipient.GetParams().clone())
 	}
-	if recipient.Headers != nil {
-		recipient.Headers = recipient.Headers.clone()
+	if recipient.GetHeaders() != nil {
+		recipient.SetParams(recipient.GetHeaders().clone())
 	}
 
 	req := &Request{}
@@ -125,11 +126,11 @@ func (req *Request) Transport() string {
 
 	uri := req.Recipient
 	if hdr := req.Route(); hdr != nil {
-		uri = hdr.Address
+		uri = &hdr.Address
 	}
 
-	if uri.Params != nil {
-		if val, ok := uri.Params.Get("transport"); ok && val != "" {
+	if uri.GetParams() != nil {
+		if val, ok := uri.GetParams().Get("transport"); ok && val != "" {
 			tp = strings.ToUpper(val)
 		}
 	}
@@ -205,7 +206,8 @@ func (req *Request) Destination() string {
 		uri = &hdr.Address
 	}
 	if uri == nil {
-		uri = &req.Recipient
+		// TODO: see if this is okay?
+		uri = req.Recipient.(*SIPURI)
 	}
 
 	host := uri.Host
@@ -220,10 +222,10 @@ func (req *Request) Destination() string {
 // newAckRequestNon2xx follows rules as here. This is not dialog ACK instead it is transaction ACK.
 // https://datatracker.ietf.org/doc/html/rfc3261#section-17.1.1.3
 func newAckRequestNon2xx(inviteRequest *Request, inviteResponse *Response, body []byte) *Request {
-	recipient := &inviteRequest.Recipient
+	recipient := inviteRequest.Recipient
 	ackRequest := NewRequest(
 		ACK,
-		*recipient.Clone(),
+		recipient.Clone(),
 	)
 	ackRequest.SipVersion = inviteRequest.SipVersion
 
@@ -321,7 +323,7 @@ func newCancelRequest(requestForCancel *Request) *Request {
 func cloneRequest(req *Request) *Request {
 	newReq := NewRequest(
 		req.Method,
-		*req.Recipient.Clone(),
+		req.Recipient.Clone(),
 	)
 	newReq.SipVersion = req.SipVersion
 

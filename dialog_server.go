@@ -357,7 +357,7 @@ func (s *DialogServerSession) WriteResponse(res *sip.Response) error {
 func (s *DialogServerSession) Bye(ctx context.Context) error {
 	req := s.Dialog.InviteRequest
 	cont := s.Dialog.InviteRequest.Contact()
-	bye := sip.NewRequest(sip.BYE, cont.Address)
+	bye := sip.NewRequest(sip.BYE, cont.URI)
 	bye.SetTransport(req.Transport())
 
 	return s.WriteBye(ctx, bye)

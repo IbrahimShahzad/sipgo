@@ -1,6 +1,7 @@
 package sip
 
 import (
+	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -17,14 +18,45 @@ const (
 	URISchemeUnknown
 )
 
+var uriSchemes map[URIScheme]string = map[URIScheme]string{
+	URISchemeSIP:  "sip",
+	URISchemeSIPS: "sips",
+	URISchemeTEL:  "tel",
+}
+
+func detectScheme(s string) URIScheme {
+	switch strings.ToLower(s) {
+	case "sip", "*":
+		return URISchemeSIP
+	case "sips":
+		return URISchemeSIPS
+	case "tel":
+		return URISchemeTEL
+	default:
+		return URISchemeUnknown
+	}
+}
+
 type URI interface {
 	String() string
-	GetScheme() string
+	Addr() string
+	GetScheme() URIScheme
+	GetParams() HeaderParams
+	GetUser() string
+	GetHost() string
+	GetHeaders() HeaderParams
+	SetParams(HeaderParams)
+	SetHeaders(HeaderParams) error
+	SetUser(string)
+	SetHost(string) error
+	IsWildCard() bool
+	IsEncrypted() bool
+	Clone() URI
 }
 
 type TELURI struct {
 	// Scheme is the scheme of the URI, e.g. "tel"
-	Scheme string
+	Scheme URIScheme
 	// Wildcard is true if the URI is a wildcard URI, e.g. "tel:*"
 	Wildcard bool
 	// HierarhicalSlashes is true if the URI has hierarchical slashes, e.g. "tel://"
@@ -35,54 +67,122 @@ type TELURI struct {
 	Params HeaderParams
 	// Headers are the URI headers, e.g. "?header1=value1&header2=value2"
 	Headers HeaderParams
+
+	host string // to convert to sip uri
 }
 
-func (uri *TELURI) String() string {
+func (u *TELURI) String() string {
 	var buffer strings.Builder
-	uri.StringWrite(&buffer)
+	u.StringWrite(&buffer, true)
 	return buffer.String()
 }
 
-func (uri *TELURI) GetScheme() string {
-	// For backward compatibility. No scheme defaults to tel
-	if uri.Scheme == "" {
-		return "tel"
-	}
-	return uri.Scheme
+func (u *TELURI) GetScheme() URIScheme {
+	return URISchemeTEL
+}
+
+func (u *TELURI) GetParams() HeaderParams {
+	return u.Params
+}
+
+func (u *TELURI) GetHeaders() HeaderParams {
+	return nil
+}
+
+func (u *TELURI) GetUser() string {
+	return u.Number
+}
+
+func (u *TELURI) GetHost() string {
+	return ""
+}
+
+func (u *TELURI) Addr() string {
+	var buffer strings.Builder
+	u.StringWrite(&buffer, false)
+	return buffer.String()
+}
+
+func (u *TELURI) IsWildCard() bool {
+	// no wildcards in tel uri
+	return false
 }
 
 // StringWrite writes uri string to buffer
-func (uri *TELURI) StringWrite(buffer io.StringWriter) {
+func (u *TELURI) StringWrite(buffer io.StringWriter, withParam bool) {
 	// Normally we expect sip or sips, but it can be tel, urn
-	scheme := uri.Scheme
-	// For backward compatibility. No scheme defaults to sip
-	if uri.Scheme == "" {
-		scheme = "tel"
-	}
 
-	buffer.WriteString(scheme)
+	buffer.WriteString(uriSchemes[u.GetScheme()])
 	buffer.WriteString(":")
 
-	if uri.HierarhicalSlashes {
+	if u.HierarhicalSlashes {
 		buffer.WriteString("//")
 	}
 
-	if uri.Number != "" {
-		buffer.WriteString(uri.Number)
+	if u.Number != "" {
+		buffer.WriteString(u.Number)
 	}
 
-	if (uri.Params != nil) && uri.Params.Length() > 0 {
-		buffer.WriteString(";")
-		buffer.WriteString(uri.Params.ToString(';'))
+	// in address we do not need to add the params
+	if withParam {
+		if (u.Params != nil) && u.Params.Length() > 0 {
+			buffer.WriteString(";")
+			buffer.WriteString(u.Params.ToString(';'))
+		}
 	}
+}
 
+// Clone
+func (u *TELURI) Clone() URI {
+	c := *u
+	if u.Params != nil {
+		c.Params = u.Params.clone()
+	}
+	return &c
+}
+
+func (u *TELURI) IsEncrypted() bool {
+	return false
+}
+
+func (u *TELURI) TELtoSIP(uri *SIPURI) error {
+	if u.host == "" {
+		return errors.New("set the host to use when converting to SIPURI")
+	}
+	uri.User = u.Number
+	// should come from config
+	uri.Host = u.host
+	uri.HierarhicalSlashes = u.HierarhicalSlashes
+	uri.Params = u.Params
+	uri.Params.Add("user-context", "phone")
+	return nil
+}
+
+func (u *TELURI) SetParams(p HeaderParams) {
+	u.Params = p
+}
+
+func (u *TELURI) SetHeaders(h HeaderParams) error {
+	return errors.New("header params not allowed for TEL-URI")
+}
+
+func (u *TELURI) SetHost(s string) error {
+	if s == "*" {
+		return errors.New("wildcard not allowed for TEL-URI")
+	}
+	u.host = s
+	return nil
+}
+
+func (u *TELURI) SetUser(s string) {
+	u.Number = s
 }
 
 // SIPURI is parsed form of
 // sip:user:password@host:port;uri-parameters?headers
 // In case of `sips:“ Encrypted is set to true
 type SIPURI struct {
-	Scheme string
+	Scheme URIScheme
 
 	// If value is star (*)
 	Wildcard bool
@@ -116,114 +216,145 @@ type SIPURI struct {
 	Headers HeaderParams
 }
 
-func (uri *SIPURI) GetScheme() string {
-	return uri.Scheme
+func (u *SIPURI) GetScheme() URIScheme {
+	return u.Scheme
 }
 
 // Generates the string representation of a SipUri struct.
-func (uri *SIPURI) String() string {
+func (u *SIPURI) String() string {
 	var buffer strings.Builder
-	uri.StringWrite(&buffer)
+	u.StringWrite(&buffer)
 
 	return buffer.String()
 }
 
 // StringWrite writes uri string to buffer
-func (uri *SIPURI) StringWrite(buffer io.StringWriter) {
-	// Normally we expect sip or sips, but it can be tel, urn
-	scheme := uri.Scheme
-	// For backward compatibility. No scheme defaults to sip
-	if uri.Scheme == "" {
-		scheme = "sip"
-	}
+func (u *SIPURI) StringWrite(buffer io.StringWriter) {
 
-	buffer.WriteString(scheme)
+	buffer.WriteString(uriSchemes[u.GetScheme()])
 	buffer.WriteString(":")
 
-	if uri.HierarhicalSlashes {
+	if u.HierarhicalSlashes {
 		buffer.WriteString("//")
 	}
 
 	// Optional userinfo part.
-	if uri.User != "" {
-		buffer.WriteString(uri.User)
-		if uri.Password != "" {
+	if u.User != "" {
+		buffer.WriteString(u.User)
+		if u.Password != "" {
 			buffer.WriteString(":")
-			buffer.WriteString(uri.Password)
+			buffer.WriteString(u.Password)
 		}
 		buffer.WriteString("@")
 	}
 
 	// Compulsory hostname.
-	buffer.WriteString(uri.Host)
+	buffer.WriteString(u.Host)
 
 	// Optional port number.
-	if uri.Port > 0 {
+	if u.Port > 0 {
 		buffer.WriteString(":")
-		buffer.WriteString(strconv.Itoa(uri.Port))
+		buffer.WriteString(strconv.Itoa(u.Port))
 	}
 
-	if (uri.Params != nil) && uri.Params.Length() > 0 {
+	if (u.Params != nil) && u.Params.Length() > 0 {
 		buffer.WriteString(";")
-		buffer.WriteString(uri.Params.ToString(';'))
+		buffer.WriteString(u.Params.ToString(';'))
 	}
 
-	if (uri.Headers != nil) && uri.Headers.Length() > 0 {
+	if (u.Headers != nil) && u.Headers.Length() > 0 {
 		buffer.WriteString("?")
-		buffer.WriteString(uri.Headers.ToString('&'))
+		buffer.WriteString(u.Headers.ToString('&'))
 	}
 }
 
 // Clone
-func (uri *SIPURI) Clone() *SIPURI {
-	c := *uri
-	if uri.Params != nil {
-		c.Params = uri.Params.clone()
+func (u *SIPURI) Clone() URI {
+	c := *u
+	if u.Params != nil {
+		c.Params = u.Params.clone()
 	}
-	if uri.Headers != nil {
-		c.Headers = uri.Headers.clone()
+	if u.Headers != nil {
+		c.Headers = u.Headers.clone()
 	}
 	return &c
 }
 
 // IsEncrypted returns true if uri is SIPS uri
-func (uri *SIPURI) IsEncrypted() bool {
-	return uri.Scheme == "sips"
+func (u *SIPURI) IsEncrypted() bool {
+	return u.Scheme == URISchemeSIPS
 }
 
 // Endpoint is uri user identifier. user@host[:port]
-func (uri *SIPURI) Endpoint() string {
-	addr := uri.User + "@" + uri.Host
-	if uri.Port > 0 {
-		addr += ":" + strconv.Itoa(uri.Port)
+func (u *SIPURI) Endpoint() string {
+	addr := u.User + "@" + u.Host
+	if u.Port > 0 {
+		addr += ":" + strconv.Itoa(u.Port)
 	}
 	return addr
 }
 
 // Addr is uri part without headers and params. sip[s]:user@host[:port]
-func (uri *SIPURI) Addr() string {
-	scheme := uri.Scheme
+func (u *SIPURI) Addr() string {
+	scheme := uriSchemes[u.Scheme]
 	// For backward compatibility. No scheme defaults to sip
-	if uri.Scheme == "" {
-		scheme = "sip"
+
+	addr := u.Host
+	if u.User != "" {
+		addr = u.User + "@" + addr
+	}
+	if u.Port > 0 {
+		addr += ":" + strconv.Itoa(u.Port)
 	}
 
-	addr := uri.Host
-	if uri.User != "" {
-		addr = uri.User + "@" + addr
-	}
-	if uri.Port > 0 {
-		addr += ":" + strconv.Itoa(uri.Port)
-	}
-
-	if uri.IsEncrypted() {
+	if u.IsEncrypted() {
 		return "sips:" + addr
 	}
 	return scheme + ":" + addr
 }
 
 // HostPort represents host:port part
-func (uri *SIPURI) HostPort() string {
-	p := strconv.Itoa(uri.Port)
-	return uri.Host + ":" + p
+func (u *SIPURI) HostPort() string {
+	p := strconv.Itoa(u.Port)
+	return u.Host + ":" + p
+}
+
+func (u *SIPURI) GetParams() HeaderParams {
+	return u.Params
+}
+
+func (u *SIPURI) GetHeaders() HeaderParams {
+	return u.Headers
+}
+
+func (u *SIPURI) GetHost() string {
+	return u.Host
+}
+
+func (u *SIPURI) GetUser() string {
+	return u.User
+}
+
+func (u *SIPURI) IsWildCard() bool {
+	return u.Wildcard
+}
+
+func (u *SIPURI) SetParams(p HeaderParams) {
+	u.Params = p
+}
+
+func (u *SIPURI) SetHeaders(h HeaderParams) error {
+	u.Headers = h
+	return nil
+}
+
+func (u *SIPURI) SetHost(s string) error {
+	if s == "*" {
+		u.Wildcard = true
+	}
+	u.Host = s
+	return nil
+}
+func (u *SIPURI) SetUser(s string) {
+	u.User = s
 }

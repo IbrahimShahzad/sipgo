@@ -315,20 +315,23 @@ func clientRequestBuildReq(c *Client, req *sip.Request) error {
 	// From and To headers should not contain Port numbers, headers, uri params
 	if v := req.From(); v == nil {
 		from := sip.FromHeader{
-			DisplayName: c.UserAgent.name,
-			Address: sip.SIPURI{
-				Scheme:  req.Recipient.Scheme,
-				User:    c.UserAgent.name,
-				Host:    c.UserAgent.hostname,
-				Params:  sip.NewParams(),
-				Headers: sip.NewParams(),
+			NameAddress: &sip.NameAddress{
+				DisplayName: c.UserAgent.name,
+				URI: &sip.SIPURI{
+					Scheme:  req.Recipient.GetScheme(),
+					User:    c.UserAgent.name,
+					Host:    c.UserAgent.hostname,
+					Params:  sip.NewParams(),
+					Headers: sip.NewParams(),
+				},
+				Params: sip.NewParams(),
 			},
-			Params: sip.NewParams(),
 		}
 
-		if from.Address.Host == "" {
+		if from.URI.GetHost() == "" {
 			// In case we have no UA hostname set use whatever is our routing host
-			from.Address.Host = c.host
+			// TODO: add set host here
+			from.URI.SetHost(c.host)
 		}
 
 		from.Params.Add("tag", sip.GenerateTagN(16))
@@ -337,14 +340,16 @@ func clientRequestBuildReq(c *Client, req *sip.Request) error {
 
 	if v := req.To(); v == nil {
 		to := sip.ToHeader{
-			Address: sip.SIPURI{
-				Scheme:  req.Recipient.Scheme,
-				User:    req.Recipient.User,
-				Host:    req.Recipient.Host,
-				Params:  sip.NewParams(),
-				Headers: sip.NewParams(),
+			NameAddress: &sip.NameAddress{
+				URI: &sip.SIPURI{
+					Scheme:  req.Recipient.GetScheme(),
+					User:    req.Recipient.GetUser(),
+					Host:    req.Recipient.GetHost(),
+					Params:  sip.NewParams(),
+					Headers: sip.NewParams(),
+				},
+				Params: sip.NewParams(),
 			},
-			Params: sip.NewParams(),
 		}
 		mustHeader = append(mustHeader, &to)
 	}
@@ -420,7 +425,7 @@ func ClientRequestRegisterBuild(c *Client, r *sip.Request) error {
 
 	// The "userinfo" and "@" components of the
 	//        SIP URI MUST NOT be present.
-	r.Recipient.User = ""
+	r.Recipient.SetUser("")
 	return nil
 }
 

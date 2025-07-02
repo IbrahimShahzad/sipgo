@@ -12,38 +12,39 @@ var (
 	errInvalidUri   = errors.New("invalid uri, missing end bracket")
 )
 
-type nameAddress struct {
-	displayName  string
-	uri          *SIPURI
-	headerParams HeaderParams
+type NameAddress struct {
+	DisplayName string
+	URI         URI
+	Params      HeaderParams
 }
 
-type addressFSM func(dispName *nameAddress, s string) (addressFSM, string, error)
+type addressFSM func(dispName *NameAddress, s string) (addressFSM, string, error)
 
 // ParseAddressValue parses an address - such as from a From, To, or
 // Contact header. It returns:
 // See RFC 3261 section 20.10 for details on parsing an address.
-func ParseAddressValue(addressText string, uri *SIPURI, headerParams HeaderParams) (displayName string, err error) {
+func ParseAddressValue(addressText string, headerParams HeaderParams) (address *NameAddress, err error) {
 	if len(addressText) == 0 {
-		return "", errEmptyAddress
+		return nil, errEmptyAddress
 	}
 
 	// adds alloc but easier to maintain
-	a := nameAddress{
-		uri:          uri,
-		headerParams: headerParams,
+	a := NameAddress{
+		Params: headerParams,
 	}
 
 	err = parseNameAddress(addressText, &a)
-	displayName = a.displayName
-	return
+	if a.URI == nil {
+		panic("why is this panic")
+	}
+	return &a, nil
 }
 
 // parseNameAddress
 // name-addr      =  [ display-name ] LAQUOT addr-spec RAQUOT
 // addr-spec      =  SIP-URI / SIPS-URI / absoluteURI
 // TODO Consider exporting this
-func parseNameAddress(addressText string, a *nameAddress) (err error) {
+func parseNameAddress(addressText string, a *NameAddress) (err error) {
 	state := addressStateDisplayName
 	str := addressText
 	for state != nil {
@@ -55,7 +56,7 @@ func parseNameAddress(addressText string, a *nameAddress) (err error) {
 	return nil
 }
 
-func addressStateDisplayName(a *nameAddress, s string) (addressFSM, string, error) {
+func addressStateDisplayName(a *NameAddress, s string) (addressFSM, string, error) {
 	for i, c := range s {
 		if c == '"' {
 			return addressStateDisplayNameQuoted, s[i+1:], nil
@@ -67,7 +68,7 @@ func addressStateDisplayName(a *nameAddress, s string) (addressFSM, string, erro
 		// and ">" are present, all parameters after the URI are header
 		// parameters, not URI parameters.
 		if c == '<' {
-			a.displayName = strings.TrimSpace(s[:i])
+			a.DisplayName = strings.TrimSpace(s[:i])
 			return addressStateUriBracket, s[i+1:], nil
 		}
 
@@ -82,7 +83,7 @@ func addressStateDisplayName(a *nameAddress, s string) (addressFSM, string, erro
 	return addressStateUri, s, nil
 }
 
-func addressStateDisplayNameQuoted(a *nameAddress, s string) (addressFSM, string, error) {
+func addressStateDisplayNameQuoted(a *NameAddress, s string) (addressFSM, string, error) {
 	var escaped bool
 	for i, c := range s {
 		if c == '\\' {
@@ -103,7 +104,7 @@ func addressStateDisplayNameQuoted(a *nameAddress, s string) (addressFSM, string
 		}
 
 		if c == '"' {
-			a.displayName = s[:i]
+			a.DisplayName = s[:i]
 			s = s[i+1:]
 			for i, c := range s {
 				if c == '<' {
@@ -121,46 +122,49 @@ func addressStateDisplayNameQuoted(a *nameAddress, s string) (addressFSM, string
 	return nil, s, fmt.Errorf("invalid uri display name inside quotes")
 }
 
-func addressStateUriBracket(a *nameAddress, s string) (addressFSM, string, error) {
+func addressStateUriBracket(a *NameAddress, s string) (addressFSM, string, error) {
 	if len(s) == 0 {
 		return nil, s, errNoURIPresent
 	}
 
 	for i, c := range s {
 		if c == '>' {
-			err := ParseSIPURI(s[:i], a.uri)
+			var err error
+			a.URI, err = ParseURI(s[:i])
 			return addressStateHeaderParams, s[i+1:], err
 		}
 	}
 	return nil, s, errInvalidUri
 }
 
-func addressStateUri(a *nameAddress, s string) (addressFSM, string, error) {
+func addressStateUri(a *NameAddress, s string) (addressFSM, string, error) {
 	if len(s) == 0 {
 		return nil, s, errors.New("no URI present")
 	}
 
 	for i, c := range s {
 		if c == ';' {
-			err := ParseSIPURI(s[:i], a.uri)
+			var err error
+			a.URI, err = ParseURI(s[:i])
 			return addressStateHeaderParams, s[i+1:], err
 		}
 	}
 
 	// No header params detected
-	err := ParseSIPURI(s, a.uri)
+	var err error
+	a.URI, err = ParseURI(s)
 	return nil, s, err
 }
 
-func addressStateHeaderParams(a *nameAddress, s string) (addressFSM, string, error) {
+func addressStateHeaderParams(a *NameAddress, s string) (addressFSM, string, error) {
 
 	addParam := func(equal int, s string) {
 
 		if equal > 0 {
 			name := s[:equal]
 			val := s[equal+1:]
-			if a.headerParams != nil {
-				a.headerParams.Add(name, val)
+			if a.Params != nil {
+				a.Params.Add(name, val)
 			}
 			return
 		}
@@ -172,8 +176,8 @@ func addressStateHeaderParams(a *nameAddress, s string) (addressFSM, string, err
 
 		// Case when we have key name but not value. ex ;+siptag;
 		name := s[:]
-		if a.headerParams != nil {
-			a.headerParams.Add(name, "")
+		if a.Params != nil {
+			a.Params.Add(name, "")
 		}
 	}
 
@@ -204,12 +208,19 @@ func parseToHeader(headerText string, h *ToHeader) error {
 	var err error
 
 	h.Params = NewParams()
-	h.DisplayName, err = ParseAddressValue(headerText, &h.Address, h.Params)
+	th, err := ParseAddressValue(headerText, h.Params)
+	h = &ToHeader{
+		NameAddress: th,
+	}
 	if err != nil {
 		return err
 	}
 
-	if h.Address.Wildcard {
+	if h.URI == nil {
+		return errors.New("the parsed address is nil")
+	}
+
+	if h.URI.IsWildCard() {
 		// The Wildcard '*' URI is only permitted in Contact headers.
 		err = fmt.Errorf(
 			"wildcard uri not permitted in to: header: %s",
@@ -230,13 +241,18 @@ func parseFromHeader(headerText string, h *FromHeader) error {
 	var err error
 
 	h.Params = NewParams()
-	h.DisplayName, err = ParseAddressValue(headerText, &h.Address, h.Params)
+	// h.DisplayName, err = ParseAddressValue(headerText, h.Address, h.Params)
+	h.NameAddress, err = ParseAddressValue(headerText, h.Params)
 	// h.DisplayName, h.Address, h.Params, err = ParseAddressValue(headerText)
 	if err != nil {
 		return err
 	}
 
-	if h.Address.Wildcard {
+	if h.URI == nil {
+		return errors.New("could not parse address")
+	}
+
+	if h.URI.IsWildCard() {
 		// The Wildcard '*' URI is only permitted in Contact headers.
 		err = fmt.Errorf(
 			"wildcard uri not permitted in to: header: %s",
@@ -284,7 +300,7 @@ func parseContactHeader(headerText string, h *ContactHeader) error {
 
 	var e error
 	h.Params = NewParams()
-	h.DisplayName, e = ParseAddressValue(headerText[:endInd], &h.Address, h.Params)
+	h.NameAddress, e = ParseAddressValue(headerText[:endInd], h.Params)
 	if e != nil {
 		return e
 	}
@@ -334,12 +350,12 @@ func parseReferredByHeader(headerText string, h *ReferredByHeader) error {
 	var err error
 
 	h.Params = NewParams()
-	h.DisplayName, err = ParseAddressValue(headerText, &h.Address, h.Params)
+	h.NameAddress, err = ParseAddressValue(headerText, h.Params)
 	if err != nil {
 		return err
 	}
 
-	if h.Address.Wildcard {
+	if h.URI.IsWildCard() {
 		// The Wildcard '*' URI is only permitted in Contact headers.
 		err = fmt.Errorf(
 			"wildcard uri not permitted in to: header: %s",
@@ -375,10 +391,12 @@ func parseRouteAddress(headerText string, address *SIPURI) (err error) {
 				continue
 			}
 
-			_, e := ParseAddressValue(headerText[:idx], address, nil)
+			nameAddress, e := ParseAddressValue(headerText[:idx], nil)
 			if e != nil {
 				return e
 			}
+			// should be a SIP
+			address = nameAddress.URI.(*SIPURI)
 			break
 		}
 	}

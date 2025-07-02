@@ -10,36 +10,23 @@ import (
 type sipUriFSM func(uri *SIPURI, s string) (sipUriFSM, string, error)
 type telUriFSM func(uri *TELURI, s string) (telUriFSM, string, error)
 
-func detectScheme(s string) (URIScheme, error) {
-	// For now with minimum changes to behaviour
-	if len(s) < 3 {
-		if s == "*" {
-			return URISchemeSIP, nil
-		}
-		return URISchemeError, fmt.Errorf("not valid uri scheme: %s", s)
-	}
-	if strings.HasPrefix(s, "sip:") {
-		return URISchemeSIP, nil
-	}
-	if strings.HasPrefix(s, "sips:") {
-		return URISchemeSIPS, nil
-	}
-	if strings.HasPrefix(s, "tel:") {
-		return URISchemeTEL, nil
-	}
-	// We do not support urn: yet
-	return URISchemeUnknown, nil
-}
-
 func ParseURI(uriStr string) (URI, error) {
-	scheme, err := detectScheme(uriStr)
-	if err != nil {
-		return nil, err
+	scheme := URISchemeError
+	l := min(len(uriStr), 4)
+	for i := range l {
+		if c := uriStr[i]; c == ':' {
+			scheme = detectScheme(uriStr[:i])
+		}
 	}
+
+	if len(uriStr) < 3 && scheme != URISchemeSIP {
+		return nil, fmt.Errorf("not valid uri scheme: %s", uriStr)
+	}
+
 	switch scheme {
 	case URISchemeSIP, URISchemeSIPS:
 		uri := &SIPURI{
-			Scheme: strings.ToLower(uriStr[:3]),
+			Scheme: scheme,
 		}
 		if err := ParseSIPURI(uriStr, uri); err != nil {
 			return nil, err
@@ -47,10 +34,10 @@ func ParseURI(uriStr string) (URI, error) {
 		return uri, nil
 	case URISchemeTEL:
 		uri := &TELURI{
-			Scheme: strings.ToLower(uriStr[:3]),
+			Scheme: scheme,
 		}
 
-		if err = ParseTELURI(uriStr, uri); err != nil {
+		if err := ParseTELURI(uriStr, uri); err != nil {
 			return nil, err
 		}
 		return uri, nil
@@ -106,7 +93,11 @@ func uriStateScheme(uri *SIPURI, s string) (sipUriFSM, string, error) {
 
 	for i, c := range s {
 		if c == ':' {
-			uri.Scheme = ASCIIToLower(s[:i])
+			scheme := detectScheme(ASCIIToLower(s[:i]))
+			if scheme != URISchemeSIP {
+				return nil, "", fmt.Errorf("Invalid scheme %d", scheme)
+			}
+			uri.Scheme = scheme
 			return uriStateSlashes, s[i+1:], nil
 		}
 		// Check is c still ASCII
@@ -274,7 +265,10 @@ func telStateScheme(uri *TELURI, s string) (telUriFSM, string, error) {
 
 	for i, c := range s {
 		if c == ':' {
-			uri.Scheme = ASCIIToLower(s[:i])
+			uri.Scheme = detectScheme(ASCIIToLower(s[:i]))
+			if uri.Scheme != URISchemeTEL {
+				return nil, "", fmt.Errorf("not a tel uri sheme")
+			}
 			return telStateSlashes, s[i+1:], nil
 		}
 		// Check is c still ASCII

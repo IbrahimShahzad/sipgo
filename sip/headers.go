@@ -477,11 +477,7 @@ func (h *genericHeader) headerClone() Header {
 
 // ToHeader introduces SIP 'To' header
 type ToHeader struct {
-	// The display name from the header, may be omitted.
-	DisplayName string
-	Address     SIPURI
-	// Any parameters present in the header.
-	Params HeaderParams
+	*NameAddress
 }
 
 func (h *ToHeader) String() string {
@@ -512,10 +508,7 @@ func (h *ToHeader) ValueStringWrite(buffer io.StringWriter) {
 	}
 
 	// buffer.WriteString(fmt.Sprintf("<%s>", h.Address))
-	buffer.WriteString("<")
-	h.Address.StringWrite(buffer)
-	// buffer.WriteString(h.Address.String())
-	buffer.WriteString(">")
+	buffer.WriteString("<" + h.URI.String() + ">")
 
 	if h.Params != nil && h.Params.Length() > 0 {
 		buffer.WriteString(";")
@@ -526,9 +519,11 @@ func (h *ToHeader) ValueStringWrite(buffer io.StringWriter) {
 
 func (h *ToHeader) AsFrom() FromHeader {
 	return FromHeader{
-		Address:     *h.Address.Clone(),
-		Params:      h.Params.Clone(),
-		DisplayName: h.DisplayName,
+		NameAddress: &NameAddress{
+			URI:         h.URI.Clone(),
+			Params:      h.Params.Clone(),
+			DisplayName: h.DisplayName,
+		},
 	}
 }
 
@@ -540,8 +535,10 @@ func (h *ToHeader) headerClone() Header {
 	}
 
 	newTo = &ToHeader{
-		DisplayName: h.DisplayName,
-		Address:     *h.Address.Clone(),
+		NameAddress: &NameAddress{
+			DisplayName: h.DisplayName,
+			URI:         h.URI.Clone(),
+		},
 	}
 	// if h.Address != nil {
 	// 	newTo.Address = h.Address.Clone()
@@ -554,12 +551,7 @@ func (h *ToHeader) headerClone() Header {
 
 type FromHeader struct {
 	// The display name from the header, may be omitted.
-	DisplayName string
-
-	Address SIPURI
-
-	// Any parameters present in the header.
-	Params HeaderParams
+	*NameAddress
 }
 
 func (h *FromHeader) String() string {
@@ -589,9 +581,7 @@ func (h *FromHeader) ValueStringWrite(buffer io.StringWriter) {
 		buffer.WriteString("\" ")
 	}
 
-	buffer.WriteString("<")
-	h.Address.StringWrite(buffer)
-	buffer.WriteString(">")
+	buffer.WriteString("<" + h.URI.Addr() + ">")
 
 	if h.Params != nil && h.Params.Length() > 0 {
 		buffer.WriteString(";")
@@ -607,8 +597,10 @@ func (h *FromHeader) headerClone() Header {
 	}
 
 	newFrom = &FromHeader{
-		DisplayName: h.DisplayName,
-		Address:     *h.Address.Clone(),
+		NameAddress: &NameAddress{
+			DisplayName: h.DisplayName,
+			URI:         h.URI.Clone(),
+		},
 	}
 	// if h.Address != nil {
 	// 	newFrom.Address = h.Address.Clone()
@@ -622,19 +614,22 @@ func (h *FromHeader) headerClone() Header {
 
 func (h *FromHeader) AsTo() ToHeader {
 	return ToHeader{
-		Address:     *h.Address.Clone(),
-		Params:      h.Params.Clone(),
-		DisplayName: h.DisplayName,
+		NameAddress: &NameAddress{
+			URI:         h.URI.Clone(),
+			Params:      h.Params.Clone(),
+			DisplayName: h.DisplayName,
+		},
 	}
 }
 
 // ContactHeader is Contact header representation
 type ContactHeader struct {
 	// The display name from the header, may be omitted.
-	DisplayName string
-	Address     SIPURI
-	// Any parameters present in the header.
-	Params HeaderParams
+	// DisplayName string
+	// Address     URI
+	// // Any parameters present in the header.
+	// Params HeaderParams
+	*NameAddress
 }
 
 func (h *ContactHeader) String() string {
@@ -659,7 +654,7 @@ func (h *ContactHeader) Value() string {
 
 func (h *ContactHeader) valueWrite(buffer io.StringWriter) {
 
-	switch h.Address.Wildcard {
+	switch h.URI.IsWildCard() {
 	case true:
 		// Treat the Wildcard URI separately as it must not be contained in < > angle brackets.
 		buffer.WriteString("*")
@@ -675,9 +670,7 @@ func (h *ContactHeader) valueWrite(buffer io.StringWriter) {
 		buffer.WriteString("\" ")
 	}
 
-	buffer.WriteString("<")
-	h.Address.StringWrite(buffer)
-	buffer.WriteString(">")
+	buffer.WriteString("<" + h.URI.Addr() + ">")
 
 	if (h.Params != nil) && (h.Params.Length() > 0) {
 		buffer.WriteString(";")
@@ -697,8 +690,10 @@ func (h *ContactHeader) Clone() *ContactHeader {
 	}
 
 	newCnt = &ContactHeader{
-		DisplayName: h.DisplayName,
-		Address:     *h.Address.Clone(),
+		NameAddress: &NameAddress{
+			DisplayName: h.DisplayName,
+			URI:         h.URI.Clone(),
+		},
 	}
 
 	if h.Params != nil {
@@ -987,7 +982,8 @@ func (h *RouteHeader) headerClone() Header {
 
 func (h *RouteHeader) Clone() *RouteHeader {
 	newRoute := &RouteHeader{
-		Address: *h.Address.Clone(),
+		// safe to assert here since the Address is already SIPURI
+		Address: *h.Address.Clone().(*SIPURI),
 	}
 	return newRoute
 }
@@ -1029,7 +1025,7 @@ func (h *RecordRouteHeader) headerClone() Header {
 
 func (h *RecordRouteHeader) Clone() *RecordRouteHeader {
 	newRoute := &RecordRouteHeader{
-		Address: *h.Address.Clone(),
+		Address: *h.Address.Clone().(*SIPURI),
 	}
 	return newRoute
 }
@@ -1071,16 +1067,17 @@ func (h *ReferToHeader) headerClone() Header {
 
 func (h *ReferToHeader) Clone() *ReferToHeader {
 	newTarget := &ReferToHeader{
-		Address: *h.Address.Clone(),
+		Address: *h.Address.Clone().(*SIPURI),
 	}
 	return newTarget
 }
 
 // ReferredByHeader is Referred-By header representation.
 type ReferredByHeader struct {
-	DisplayName string
-	Address     SIPURI
-	Params      HeaderParams
+	// DisplayName string
+	// Address     SIPURI
+	// Params      HeaderParams
+	*NameAddress
 }
 
 func (h *ReferredByHeader) Name() string { return "Referred-By" }
@@ -1098,9 +1095,7 @@ func (h *ReferredByHeader) ValueStringWrite(buffer io.StringWriter) {
 		buffer.WriteString("\" ")
 	}
 
-	buffer.WriteString("<")
-	h.Address.StringWrite(buffer)
-	buffer.WriteString(">")
+	buffer.WriteString("<" + h.NameAddress.URI.String() + ">")
 
 	if h.Params != nil && h.Params.Length() > 0 {
 		buffer.WriteString(";")
@@ -1126,8 +1121,11 @@ func (h *ReferredByHeader) headerClone() Header {
 
 func (h *ReferredByHeader) Clone() *ReferredByHeader {
 	newTarget := &ReferredByHeader{
-		DisplayName: h.DisplayName,
-		Address:     *h.Address.Clone(),
+		NameAddress: &NameAddress{
+			DisplayName: h.DisplayName,
+			// safe to assert here since address is already SIPURI
+			URI: h.URI.Clone().(*SIPURI),
+		},
 	}
 	if h.Params != nil {
 		newTarget.Params = h.Params.Clone()

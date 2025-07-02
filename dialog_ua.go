@@ -88,7 +88,7 @@ func (c *DialogUA) ReadInvite(inviteReq *sip.Request, tx sip.ServerTransaction) 
 	return dtx, nil
 }
 
-func (ua *DialogUA) Invite(ctx context.Context, recipient sip.SIPURI, body []byte, headers ...sip.Header) (*DialogClientSession, error) {
+func (ua *DialogUA) Invite(ctx context.Context, recipient sip.URI, body []byte, headers ...sip.Header) (*DialogClientSession, error) {
 	req := sip.NewRequest(sip.INVITE, recipient)
 	if body != nil {
 		req.SetBody(body)
