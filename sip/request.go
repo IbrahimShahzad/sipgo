@@ -11,7 +11,7 @@ import (
 type Request struct {
 	MessageData
 	Method    RequestMethod
-	Recipient Uri
+	Recipient SIPURI
 
 	// Laddr is Connection local Addr used to sent request
 	Laddr Addr
@@ -21,10 +21,10 @@ type Request struct {
 // A Request-Line contains a method name, a Request-URI, and the SIP/2.0 as version
 // No headers are added. AppendHeader should be called to add Headers.
 // r.SetBody can be called to set proper ContentLength header
-func NewRequest(method RequestMethod, recipient Uri) *Request {
-	if recipient.UriParams != nil {
+func NewRequest(method RequestMethod, recipient SIPURI) *Request {
+	if recipient.Params != nil {
 		// mostly this are empty
-		recipient.UriParams = recipient.UriParams.clone()
+		recipient.Params = recipient.Params.clone()
 	}
 	if recipient.Headers != nil {
 		recipient.Headers = recipient.Headers.clone()
@@ -128,8 +128,8 @@ func (req *Request) Transport() string {
 		uri = hdr.Address
 	}
 
-	if uri.UriParams != nil {
-		if val, ok := uri.UriParams.Get("transport"); ok && val != "" {
+	if uri.Params != nil {
+		if val, ok := uri.Params.Get("transport"); ok && val != "" {
 			tp = strings.ToUpper(val)
 		}
 	}
@@ -195,7 +195,7 @@ func (req *Request) Destination() string {
 		return dest
 	}
 
-	var uri *Uri
+	var uri *SIPURI
 	if hdr := req.Route(); hdr != nil {
 		// TODO This may be a problem if we are not a proxy, as we also need to remove this header
 		// https://datatracker.ietf.org/doc/html/rfc2543#section-6.29

@@ -7,12 +7,77 @@ import (
 	"strings"
 )
 
-type uriFSM func(uri *Uri, s string) (uriFSM, string, error)
+type sipUriFSM func(uri *SIPURI, s string) (sipUriFSM, string, error)
+type telUriFSM func(uri *TELURI, s string) (telUriFSM, string, error)
 
-// ParseUri converts a string representation of a URI into a Uri object.
+func detectScheme(s string) (URIScheme, error) {
+	// For now with minimum changes to behaviour
+	if len(s) < 3 {
+		if s == "*" {
+			return URISchemeSIP, nil
+		}
+		return URISchemeError, fmt.Errorf("not valid uri scheme: %s", s)
+	}
+	if strings.HasPrefix(s, "sip:") {
+		return URISchemeSIP, nil
+	}
+	if strings.HasPrefix(s, "sips:") {
+		return URISchemeSIPS, nil
+	}
+	if strings.HasPrefix(s, "tel:") {
+		return URISchemeTEL, nil
+	}
+	// We do not support urn: yet
+	return URISchemeUnknown, nil
+}
+
+func ParseURI(uriStr string) (URI, error) {
+	scheme, err := detectScheme(uriStr)
+	if err != nil {
+		return nil, err
+	}
+	switch scheme {
+	case URISchemeSIP, URISchemeSIPS:
+		uri := &SIPURI{
+			Scheme: strings.ToLower(uriStr[:3]),
+		}
+		if err := ParseSIPURI(uriStr, uri); err != nil {
+			return nil, err
+		}
+		return uri, nil
+	case URISchemeTEL:
+		uri := &TELURI{
+			Scheme: strings.ToLower(uriStr[:3]),
+		}
+
+		if err = ParseTELURI(uriStr, uri); err != nil {
+			return nil, err
+		}
+		return uri, nil
+	default:
+		return nil, fmt.Errorf("unsupported uri scheme: %s", uriStr)
+	}
+}
+
+func ParseTELURI(uriStr string, uri *TELURI) (err error) {
+	if len(uriStr) == 0 {
+		return errors.New("empty URI")
+	}
+	state := telStateScheme
+	str := uriStr
+	for state != nil {
+		state, str, err = state(uri, str)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+// ParseSIPURI converts a string representation of a URI into a Uri object.
 // Following https://datatracker.ietf.org/doc/html/rfc3261#section-19.1.1
 // sip:user:password@host:port;uri-parameters?headers
-func ParseUri(uriStr string, uri *Uri) (err error) {
+func ParseSIPURI(uriStr string, uri *SIPURI) (err error) {
 	if len(uriStr) == 0 {
 		return errors.New("empty URI")
 	}
@@ -27,7 +92,7 @@ func ParseUri(uriStr string, uri *Uri) (err error) {
 	return
 }
 
-func uriStateScheme(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateScheme(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	// Do fast checks. Minimum uri
 	if len(s) < 3 {
 		if s == "*" {
@@ -53,14 +118,14 @@ func uriStateScheme(uri *Uri, s string) (uriFSM, string, error) {
 	return nil, "", fmt.Errorf("missing protocol scheme")
 }
 
-func uriStateSlashes(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateSlashes(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	// Check does uri contain slashes
 	// They are valid in uri but normally we cut them
 	s, uri.HierarhicalSlashes = strings.CutPrefix(s, "//")
 	return uriStateUser, s, nil
 }
 
-func uriStateUser(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateUser(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	var userend int = 0
 	for i, c := range s {
 		if c == '[' {
@@ -86,7 +151,7 @@ func uriStateUser(uri *Uri, s string) (uriFSM, string, error) {
 	return uriStateHost, s, nil
 }
 
-func uriStateHost(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateHost(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	for i, c := range s {
 		if c == '[' {
 			return uriStateHostIPV6, s[i:], nil
@@ -115,7 +180,7 @@ func uriStateHost(uri *Uri, s string) (uriFSM, string, error) {
 	return uriStateUriParams, "", nil
 }
 
-func uriStateHostIPV6(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateHostIPV6(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	// ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff max 39 + 2 brackets
 	// Do not waste time looking end
 	maxs := min(len(s), 42)
@@ -150,7 +215,7 @@ func uriStateHostIPV6(uri *Uri, s string) (uriFSM, string, error) {
 	return uriStateUriParams, "", nil
 }
 
-func uriStatePort(uri *Uri, s string) (uriFSM, string, error) {
+func uriStatePort(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	var err error
 	for i, c := range s {
 		if c == ';' {
@@ -168,17 +233,17 @@ func uriStatePort(uri *Uri, s string) (uriFSM, string, error) {
 	return uriStateUriParams, "", err
 }
 
-func uriStateUriParams(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateUriParams(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	var n int
 	var err error
 	if len(s) == 0 {
-		uri.UriParams = NewParams()
+		uri.Params = NewParams()
 		uri.Headers = NewParams()
 		return nil, s, nil
 	}
-	uri.UriParams = NewParams()
+	uri.Params = NewParams()
 	// uri.UriParams, n, err = ParseParams(s, 0, ';', '?', true, true)
-	n, err = UnmarshalParams(s, ';', '?', uri.UriParams)
+	n, err = UnmarshalParams(s, ';', '?', uri.Params)
 	if err != nil {
 		return nil, s, err
 	}
@@ -194,10 +259,76 @@ func uriStateUriParams(uri *Uri, s string) (uriFSM, string, error) {
 	return uriStateHeaders, s[n+1:], nil
 }
 
-func uriStateHeaders(uri *Uri, s string) (uriFSM, string, error) {
+func uriStateHeaders(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	var err error
-	// uri.Headers, _, err = ParseParams(s, 0, '&', 0, true, false)
 	uri.Headers = NewParams()
 	_, err = UnmarshalParams(s, '&', 0, uri.Headers)
 	return nil, s, err
+}
+
+func telStateScheme(uri *TELURI, s string) (telUriFSM, string, error) {
+	// Do fast checks. Minimum uri
+	if len(s) < 3 {
+		return nil, "", fmt.Errorf("not valid sip uri")
+	}
+
+	for i, c := range s {
+		if c == ':' {
+			uri.Scheme = ASCIIToLower(s[:i])
+			return telStateSlashes, s[i+1:], nil
+		}
+		// Check is c still ASCII
+		if !isASCII(c) {
+			return nil, "", fmt.Errorf("invalid uri scheme")
+		}
+	}
+	return nil, "", fmt.Errorf("missing protocol scheme")
+}
+
+func telStateSlashes(uri *TELURI, s string) (telUriFSM, string, error) {
+	// Check does uri contain slashes
+	// They are valid in uri but normally we cut them
+	s, uri.HierarhicalSlashes = strings.CutPrefix(s, "//")
+	return telStateNumber, s, nil
+}
+
+func isTelChar(c rune) bool {
+	// We allow digits, plus, minus, dot, and some special chars
+	return (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.' || c == '*' || c == '#' || c == ';' || c == '&'
+}
+
+func telStateNumber(uri *TELURI, s string) (telUriFSM, string, error) {
+	// We expect only digits and some special chars
+	for i, c := range s {
+		if c == ';' || c == '&' {
+			uri.Number = s[:i]
+			return telStateParams, s[i+1:], nil
+		}
+		if !isTelChar(c) {
+			return nil, "", fmt.Errorf("invalid tel uri number")
+		}
+	}
+	// If we reach here, we are at the end of the string
+	uri.Number = s
+	return telStateParams, "", nil
+}
+
+func telStateParams(uri *TELURI, s string) (telUriFSM, string, error) {
+	var n int
+	var err error
+	if len(s) == 0 {
+		uri.Params = NewParams()
+		return nil, s, nil
+	}
+	uri.Params = NewParams()
+	n, err = UnmarshalParams(s, ';', '0', uri.Params)
+	if err != nil {
+		return nil, s, err
+	}
+
+	if n == len(s) {
+		n = n - 1
+	}
+
+	return nil, s, nil
 }

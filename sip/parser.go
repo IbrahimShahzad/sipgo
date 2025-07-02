@@ -24,7 +24,7 @@ var (
 	// Stream parse errors
 	ErrParseSipPartial         = errors.New("SIP partial data")
 	ErrParseReadBodyIncomplete = errors.New("reading body incomplete")
-	ErrParseMoreMessages       = errors.New("Stream has more message")
+	ErrParseMoreMessages       = errors.New("stream has more message")
 
 	ParseMaxMessageLength = 65535
 )
@@ -143,7 +143,7 @@ func (p *Parser) NewSIPStream() *ParserStream {
 
 func parseLine(startLine string) (msg Message, err error) {
 	if isRequest(startLine) {
-		recipient := Uri{}
+		recipient := SIPURI{}
 		method, sipVersion, err := parseRequestLine(startLine, &recipient)
 		if err != nil {
 			return nil, err
@@ -266,7 +266,7 @@ func isResponse(startLine string) bool {
 //
 //	INVITE bob@example.com SIP/2.0
 //	REGISTER jane@telco.com SIP/1.0
-func parseRequestLine(requestLine string, recipient *Uri) (
+func parseRequestLine(requestLine string, recipient *SIPURI) (
 	method RequestMethod, sipVersion string, err error) {
 	parts := strings.Split(requestLine, " ")
 	if len(parts) != 3 {
@@ -275,7 +275,7 @@ func parseRequestLine(requestLine string, recipient *Uri) (
 	}
 
 	method = RequestMethod(strings.ToUpper(parts[0]))
-	err = ParseUri(parts[1], recipient)
+	err = ParseSIPURI(parts[1], recipient)
 	sipVersion = parts[2]
 
 	if recipient.Wildcard {

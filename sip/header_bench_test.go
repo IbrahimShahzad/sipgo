@@ -42,7 +42,7 @@ func BenchmarkSIPHeader(b *testing.B) {
 	b.ResetTimer()
 	b.Run("httpAdd", func(b *testing.B) {
 		// Be more relasti
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			h := httpHeader{}
 			for _, v := range keys {
 				h.Add(v, v)
@@ -57,7 +57,7 @@ func BenchmarkSIPHeader(b *testing.B) {
 			h.Add(v, v)
 		}
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := 0; b.Loop(); i++ {
 			str := keys[i%len(keys)]
 			if h.Get(str) == "" {
 				b.Fatal("key empty")
@@ -66,7 +66,7 @@ func BenchmarkSIPHeader(b *testing.B) {
 	})
 
 	b.Run("newAdd", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			h := newStyleHeader{}
 			for _, v := range keys {
 				h.Add(v, v)
@@ -90,7 +90,7 @@ func BenchmarkSIPHeader(b *testing.B) {
 			h.Add(v, v)
 		}
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := 0; b.Loop(); i++ {
 			str := keys[i%len(keys)]
 			if h.Get(str) == "" {
 				b.Fatal("key empty")

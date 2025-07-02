@@ -6,9 +6,15 @@ import (
 	"strings"
 )
 
+var (
+	errEmptyAddress = errors.New("empty Address")
+	errNoURIPresent = errors.New("no URI present")
+	errInvalidUri   = errors.New("invalid uri, missing end bracket")
+)
+
 type nameAddress struct {
 	displayName  string
-	uri          *Uri
+	uri          *SIPURI
 	headerParams HeaderParams
 }
 
@@ -17,9 +23,9 @@ type addressFSM func(dispName *nameAddress, s string) (addressFSM, string, error
 // ParseAddressValue parses an address - such as from a From, To, or
 // Contact header. It returns:
 // See RFC 3261 section 20.10 for details on parsing an address.
-func ParseAddressValue(addressText string, uri *Uri, headerParams HeaderParams) (displayName string, err error) {
+func ParseAddressValue(addressText string, uri *SIPURI, headerParams HeaderParams) (displayName string, err error) {
 	if len(addressText) == 0 {
-		return "", errors.New("Empty Address")
+		return "", errEmptyAddress
 	}
 
 	// adds alloc but easier to maintain
@@ -117,32 +123,32 @@ func addressStateDisplayNameQuoted(a *nameAddress, s string) (addressFSM, string
 
 func addressStateUriBracket(a *nameAddress, s string) (addressFSM, string, error) {
 	if len(s) == 0 {
-		return nil, s, errors.New("No URI present")
+		return nil, s, errNoURIPresent
 	}
 
 	for i, c := range s {
 		if c == '>' {
-			err := ParseUri(s[:i], a.uri)
+			err := ParseSIPURI(s[:i], a.uri)
 			return addressStateHeaderParams, s[i+1:], err
 		}
 	}
-	return nil, s, fmt.Errorf("invalid uri, missing end bracket")
+	return nil, s, errInvalidUri
 }
 
 func addressStateUri(a *nameAddress, s string) (addressFSM, string, error) {
 	if len(s) == 0 {
-		return nil, s, errors.New("No URI present")
+		return nil, s, errors.New("no URI present")
 	}
 
 	for i, c := range s {
 		if c == ';' {
-			err := ParseUri(s[:i], a.uri)
+			err := ParseSIPURI(s[:i], a.uri)
 			return addressStateHeaderParams, s[i+1:], err
 		}
 	}
 
 	// No header params detected
-	err := ParseUri(s, a.uri)
+	err := ParseSIPURI(s, a.uri)
 	return nil, s, err
 }
 
@@ -344,7 +350,7 @@ func parseReferredByHeader(headerText string, h *ReferredByHeader) error {
 	return nil
 }
 
-func parseRouteAddress(headerText string, address *Uri) (err error) {
+func parseRouteAddress(headerText string, address *SIPURI) (err error) {
 	inBrackets := false
 	inQuotes := false
 	end := len(headerText) - 1

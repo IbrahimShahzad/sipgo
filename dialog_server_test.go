@@ -21,21 +21,21 @@ func TestDialogServerByeRequest(t *testing.T) {
 	cli, _ := NewClient(ua)
 
 	uasContact := sip.ContactHeader{
-		Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5099},
+		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
 	}
 	dialogSrv := NewDialogServerCache(cli, uasContact)
 
 	invite, _, _ := createTestInvite(t, "sip:uas@uas.com", "udp", "uas.com:5090")
-	invite.AppendHeader(&sip.ContactHeader{Address: sip.Uri{Host: "uas", Port: 1234}})
-	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.Uri{Host: "P1", Port: 5060}})
-	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.Uri{Host: "P2", Port: 5060}})
-	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.Uri{Host: "P3", Port: 5060}})
+	invite.AppendHeader(&sip.ContactHeader{Address: sip.SIPURI{Host: "uas", Port: 1234}})
+	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.SIPURI{Host: "P1", Port: 5060}})
+	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.SIPURI{Host: "P2", Port: 5060}})
+	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.SIPURI{Host: "P3", Port: 5060}})
 
 	dialog, err := dialogSrv.ReadInvite(invite, sip.NewServerTx("test", invite, nil, slog.Default()))
 	require.NoError(t, err)
 
 	res := sip.NewResponseFromRequest(invite, sip.StatusOK, "OK", nil)
-	res.AppendHeader(&sip.ContactHeader{Address: sip.Uri{Host: "uac", Port: 9876}})
+	res.AppendHeader(&sip.ContactHeader{Address: sip.SIPURI{Host: "uac", Port: 9876}})
 
 	bye := sip.NewRequest(sip.BYE, invite.Contact().Address)
 	ctxCanceled, cancel := context.WithCancel(context.Background())
@@ -58,12 +58,12 @@ func TestDialogServerTransactionCanceled(t *testing.T) {
 	cli, _ := NewClient(ua)
 
 	uasContact := sip.ContactHeader{
-		Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5099},
+		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
 	}
 	dialogSrv := NewDialogServerCache(cli, uasContact)
 
 	invite, _, _ := createTestInvite(t, "sip:uas@127.0.0.1", "udp", "127.0.0.1:5090")
-	invite.AppendHeader(&sip.ContactHeader{Address: sip.Uri{Host: "uas", Port: 1234}})
+	invite.AppendHeader(&sip.ContactHeader{Address: sip.SIPURI{Host: "uas", Port: 1234}})
 
 	t.Run("TerminatedEarly", func(t *testing.T) {
 		tx := sip.NewServerTx("test", invite, nil, slog.Default())
@@ -119,12 +119,12 @@ func TestDialogServer2xxRetransmission(t *testing.T) {
 	cli, _ := NewClient(ua)
 
 	uasContact := sip.ContactHeader{
-		Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5099},
+		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
 	}
 	dialogSrv := NewDialogServerCache(cli, uasContact)
 
 	invite, _, _ := createTestInvite(t, "sip:uas@127.0.0.1", "udp", "127.0.0.1:5090")
-	invite.AppendHeader(&sip.ContactHeader{Address: sip.Uri{Host: "uas", Port: 1234}})
+	invite.AppendHeader(&sip.ContactHeader{Address: sip.SIPURI{Host: "uas", Port: 1234}})
 
 	// Create a server transcation
 	tx := siptest.NewServerTxRecorder(invite)

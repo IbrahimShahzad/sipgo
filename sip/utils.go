@@ -95,7 +95,7 @@ func ASCIIToLower(s string) string {
 }
 
 func ASCIIToLowerInPlace(s []byte) {
-	for i := 0; i < len(s); i++ {
+	for i := range s {
 		c := s[i]
 		if 'A' <= c && c <= 'Z' {
 			c += 'a' - 'A'
@@ -237,16 +237,16 @@ func findAnyUnescaped(text string, targets string, delims ...delimiter) int {
 		endChars[delim.start] = delim.end
 	}
 
-	for idx := 0; idx < len(text); idx++ {
-		if !escaped && strings.Contains(targets, string(text[idx])) {
-			return idx
+	for i := range len(text) {
+		if !escaped && strings.Contains(targets, string(text[i])) {
+			return i
 		}
 
 		if escaped {
-			escaped = text[idx] != endEscape
+			escaped = text[i] != endEscape
 			continue
 		} else {
-			endEscape, escaped = endChars[text[idx]]
+			endEscape, escaped = endChars[text[i]]
 		}
 	}
 

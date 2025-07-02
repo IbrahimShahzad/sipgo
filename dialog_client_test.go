@@ -38,7 +38,7 @@ func TestDialogClientRequestRecordRouteHeaders(t *testing.T) {
 		return sip.NewResponseFromRequest(req, 200, "OK", nil)
 	})
 
-	invite := sip.NewRequest(sip.INVITE, sip.Uri{User: "test", Host: "localhost"})
+	invite := sip.NewRequest(sip.INVITE, sip.SIPURI{User: "test", Host: "localhost"})
 	invite.AppendHeader(sip.NewHeader("Contact", "<sip:uac@uac.p1.com>"))
 	err := clientRequestBuildReq(client, invite)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestDialogClientMultiRequest(t *testing.T) {
 	dua := DialogUA{
 		Client: client,
 	}
-	d, err := dua.Invite(context.TODO(), sip.Uri{User: "test", Host: "localhost"}, nil)
+	d, err := dua.Invite(context.TODO(), sip.SIPURI{User: "test", Host: "localhost"}, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, d.InviteRequest.From())
 	assert.NotNil(t, d.InviteRequest.To())
@@ -143,7 +143,7 @@ func TestDialogClientMultiRequest(t *testing.T) {
 	d.Ack(context.TODO())
 	assert.Equal(t, d.InviteRequest.CSeq().SeqNo, sentReq.CSeq().SeqNo)
 
-	_, err = d.Do(context.Background(), sip.NewRequest(sip.INVITE, sip.Uri{User: "reinvite", Host: "localhost"}))
+	_, err = d.Do(context.Background(), sip.NewRequest(sip.INVITE, sip.SIPURI{User: "reinvite", Host: "localhost"}))
 	require.NoError(t, err)
 
 	assert.Equal(t, d.InviteRequest.CSeq().SeqNo+1, sentReq.CSeq().SeqNo)
@@ -168,7 +168,7 @@ func TestDialogClientACKRetransmission(t *testing.T) {
 	dua := DialogUA{
 		Client: client,
 	}
-	d, err := dua.Invite(context.TODO(), sip.Uri{User: "test", Host: "localhost"}, nil)
+	d, err := dua.Invite(context.TODO(), sip.SIPURI{User: "test", Host: "localhost"}, nil)
 	require.NoError(t, err)
 	err = d.WaitAnswer(context.TODO(), AnswerOptions{})
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ func BenchmarkDialogDo(b *testing.B) {
 		Client: cli,
 	}
 
-	dialog, err := dua.Invite(context.TODO(), sip.Uri{User: "test", Host: "localhost"}, nil)
+	dialog, err := dua.Invite(context.TODO(), sip.SIPURI{User: "test", Host: "localhost"}, nil)
 	require.NoError(b, err)
 	dialog.WaitAnswer(context.TODO(), AnswerOptions{})
 
@@ -207,7 +207,7 @@ func BenchmarkDialogDo(b *testing.B) {
 	})
 	b.Run("NotSupported", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			req := sip.NewRequest(sip.REFER, sip.Uri{User: "refer", Host: "localhost"})
+			req := sip.NewRequest(sip.REFER, sip.SIPURI{User: "refer", Host: "localhost"})
 			dialog.Do(context.TODO(), req)
 		}
 	})

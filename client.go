@@ -316,12 +316,12 @@ func clientRequestBuildReq(c *Client, req *sip.Request) error {
 	if v := req.From(); v == nil {
 		from := sip.FromHeader{
 			DisplayName: c.UserAgent.name,
-			Address: sip.Uri{
-				Scheme:    req.Recipient.Scheme,
-				User:      c.UserAgent.name,
-				Host:      c.UserAgent.hostname,
-				UriParams: sip.NewParams(),
-				Headers:   sip.NewParams(),
+			Address: sip.SIPURI{
+				Scheme:  req.Recipient.Scheme,
+				User:    c.UserAgent.name,
+				Host:    c.UserAgent.hostname,
+				Params:  sip.NewParams(),
+				Headers: sip.NewParams(),
 			},
 			Params: sip.NewParams(),
 		}
@@ -337,12 +337,12 @@ func clientRequestBuildReq(c *Client, req *sip.Request) error {
 
 	if v := req.To(); v == nil {
 		to := sip.ToHeader{
-			Address: sip.Uri{
-				Scheme:    req.Recipient.Scheme,
-				User:      req.Recipient.User,
-				Host:      req.Recipient.Host,
-				UriParams: sip.NewParams(),
-				Headers:   sip.NewParams(),
+			Address: sip.SIPURI{
+				Scheme:  req.Recipient.Scheme,
+				User:    req.Recipient.User,
+				Host:    req.Recipient.Host,
+				Params:  sip.NewParams(),
+				Headers: sip.NewParams(),
 			},
 			Params: sip.NewParams(),
 		}
@@ -462,10 +462,10 @@ func ClientRequestAddRecordRoute(c *Client, r *sip.Request) error {
 	port := c.tp.GetListenPort(sip.NetworkToLower(r.Transport()))
 
 	rr := &sip.RecordRouteHeader{
-		Address: sip.Uri{
+		Address: sip.SIPURI{
 			Host: c.host,
 			Port: port, // This must be listen port
-			UriParams: sip.HeaderParams{
+			Params: sip.HeaderParams{
 				// Transport must be provided as wesll
 				// https://datatracker.ietf.org/doc/html/rfc5658
 				"transport": sip.NetworkToLower(r.Transport()),

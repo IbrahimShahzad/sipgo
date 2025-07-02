@@ -231,7 +231,7 @@ func (l *TransportLayer) addListenPort(network string, port int) {
 
 func (l *TransportLayer) GetListenPort(network string) int {
 	network = NetworkToLower(network)
-	ports, _ := l.listenPorts[network]
+	ports := l.listenPorts[network]
 	if len(ports) > 0 {
 		return ports[0]
 	}
@@ -243,7 +243,7 @@ func (l *TransportLayer) ListenPorts(network string) []int {
 	defer l.listenPortsMu.Unlock()
 
 	network = NetworkToLower(network)
-	ports, _ := l.listenPorts[network]
+	ports := l.listenPorts[network]
 	return append(ports[:0:0], ports...) // Faster clone without cloning other slice fields
 }
 

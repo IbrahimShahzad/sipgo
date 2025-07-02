@@ -26,12 +26,12 @@ func TestClientRequestBuild(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	recipment := sip.Uri{
-		User:      "bob",
-		Host:      "10.2.2.2",
-		Port:      5060,
-		Headers:   sip.HeaderParams{"transport": "udp"},
-		UriParams: sip.HeaderParams{"foo": "bar"},
+	recipment := sip.SIPURI{
+		User:    "bob",
+		Host:    "10.2.2.2",
+		Port:    5060,
+		Headers: sip.HeaderParams{"transport": "udp"},
+		Params:  sip.HeaderParams{"foo": "bar"},
 	}
 
 	req := sip.NewRequest(sip.OPTIONS, recipment)
@@ -72,12 +72,12 @@ func TestClientRequestBuildWithNAT(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	recipment := sip.Uri{
-		User:      "bob",
-		Host:      "10.2.2.2",
-		Port:      5060,
-		Headers:   sip.NewParams(),
-		UriParams: sip.NewParams(),
+	recipment := sip.SIPURI{
+		User:    "bob",
+		Host:    "10.2.2.2",
+		Port:    5060,
+		Headers: sip.NewParams(),
+		Params:  sip.NewParams(),
 	}
 
 	req := sip.NewRequest(sip.OPTIONS, recipment)
@@ -103,7 +103,7 @@ func TestClientRequestBuildWithHostAndPort(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	recipment := sip.Uri{
+	recipment := sip.SIPURI{
 		User: "bob",
 		Host: "10.2.2.2",
 		Port: 5060,
@@ -133,13 +133,13 @@ func TestClientRequestOptions(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	sender := sip.Uri{
+	sender := sip.SIPURI{
 		User: "alice",
 		Host: "10.1.1.1",
 		Port: 5060,
 	}
 
-	recipment := sip.Uri{
+	recipment := sip.SIPURI{
 		User: "bob",
 		Host: "10.2.2.2",
 		Port: 5060,
@@ -222,7 +222,7 @@ func TestClientViaRouting(t *testing.T) {
 		},
 	}
 
-	options := sip.NewRequest(sip.OPTIONS, sip.Uri{User: "test", Host: "localhost"})
+	options := sip.NewRequest(sip.OPTIONS, sip.SIPURI{User: "test", Host: "localhost"})
 	_, err = client.Do(context.TODO(), options)
 	require.NoError(t, err)
 
@@ -262,7 +262,7 @@ func TestIntegrationClientViaBindHost(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	options := sip.NewRequest(sip.OPTIONS, sip.Uri{User: "test", Host: "localhost"})
+	options := sip.NewRequest(sip.OPTIONS, sip.SIPURI{User: "test", Host: "localhost"})
 	tx, err := client.TransactionRequest(context.TODO(), options)
 	require.NoError(t, err)
 
@@ -299,7 +299,7 @@ func BenchmarkClientTransactionRequestBuild(t *testing.B) {
 		WithClientHostname("10.0.0.0"),
 	)
 	for i := 0; i < t.N; i++ {
-		req := sip.NewRequest(sip.INVITE, sip.Uri{User: "test", Host: "localhost"})
+		req := sip.NewRequest(sip.INVITE, sip.SIPURI{User: "test", Host: "localhost"})
 		clientRequestBuildReq(c, req)
 	}
 }

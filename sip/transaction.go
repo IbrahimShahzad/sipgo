@@ -321,20 +321,10 @@ func makeServerTxKey(msg Message, asMethod RequestMethod) (string, error) {
 		method = asMethod
 	}
 
-	var isRFC3261 bool
-	branch, ok := firstViaHop.Params.Get("branch")
-	if ok && branch != "" &&
-		strings.HasPrefix(branch, RFC3261BranchMagicCookie) &&
-		strings.TrimPrefix(branch, RFC3261BranchMagicCookie) != "" {
-
-		isRFC3261 = true
-	} else {
-		isRFC3261 = false
-	}
-
 	var builder strings.Builder
-	// RFC 3261 compliant
-	if isRFC3261 {
+	branch, ok := firstViaHop.Params.Get("branch")
+
+	if ok && isRFC3261(branch) {
 		var port int
 
 		if firstViaHop.Port <= 0 {
@@ -354,6 +344,7 @@ func makeServerTxKey(msg Message, asMethod RequestMethod) (string, error) {
 
 		return builder.String(), nil
 	}
+
 	// RFC 2543 compliant
 	from := msg.From()
 	if from == nil {

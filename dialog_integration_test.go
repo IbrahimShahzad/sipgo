@@ -29,7 +29,7 @@ func TestIntegrationDialog(t *testing.T) {
 	defer cancel()
 
 	uasContact := sip.ContactHeader{
-		Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5099},
+		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
 	}
 
 	dialogSrv := NewDialogServerCache(cli, uasContact)
@@ -128,7 +128,7 @@ func TestIntegrationDialog(t *testing.T) {
 		cli, _ := NewClient(ua)
 
 		contactHDR := sip.ContactHeader{
-			Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5088},
+			Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5088},
 		}
 		dialogCli := NewDialogClientCache(cli, contactHDR)
 
@@ -210,7 +210,7 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 	defer cancel()
 
 	uasContact := sip.ContactHeader{
-		Address: sip.Uri{User: "test", Host: "127.0.0.201", Port: 5099},
+		Address: sip.SIPURI{User: "test", Host: "127.0.0.201", Port: 5099},
 	}
 
 	dialogSrv := NewDialogServerCache(cli, uasContact)
@@ -257,7 +257,7 @@ func TestIntegrationDialogBrokenUAC(t *testing.T) {
 		cli, _ := NewClient(ua)
 
 		contactHDR := sip.ContactHeader{
-			Address: sip.Uri{User: "test", Host: "127.0.0.201", Port: 5088},
+			Address: sip.SIPURI{User: "test", Host: "127.0.0.201", Port: 5088},
 		}
 		dialogCli := NewDialogClientCache(cli, contactHDR)
 
@@ -339,7 +339,7 @@ func TestIntegrationDialogCancel(t *testing.T) {
 	defer cancel()
 
 	uasContact := sip.ContactHeader{
-		Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5099},
+		Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5099},
 	}
 
 	dialogSrv := NewDialogServerCache(cli, uasContact)
@@ -378,7 +378,7 @@ func TestIntegrationDialogCancel(t *testing.T) {
 		cli, _ := NewClient(ua)
 
 		contactHDR := sip.ContactHeader{
-			Address: sip.Uri{User: "test", Host: "127.0.0.200", Port: 5088},
+			Address: sip.SIPURI{User: "test", Host: "127.0.0.200", Port: 5088},
 		}
 		dialogCli := NewDialogClientCache(cli, contactHDR)
 

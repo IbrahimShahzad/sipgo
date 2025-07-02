@@ -24,7 +24,7 @@ func testCreateMessage(t testing.TB, rawMsg []string) sip.Message {
 	return msg
 }
 
-func createSimpleRequest(method sip.RequestMethod, sender sip.Uri, recipment sip.Uri, transport string) *sip.Request {
+func createSimpleRequest(method sip.RequestMethod, sender sip.SIPURI, recipment sip.SIPURI, transport string) *sip.Request {
 	req := sip.NewRequest(method, recipment)
 	params := sip.NewParams()
 	params["branch"] = sip.GenerateBranch()
@@ -38,21 +38,21 @@ func createSimpleRequest(method sip.RequestMethod, sender sip.Uri, recipment sip
 	})
 	req.AppendHeader(&sip.FromHeader{
 		DisplayName: strings.ToUpper(sender.User),
-		Address: sip.Uri{
-			User:      sender.User,
-			Host:      sender.Host,
-			Port:      sender.Port,
-			UriParams: sip.NewParams(),
+		Address: sip.SIPURI{
+			User:   sender.User,
+			Host:   sender.Host,
+			Port:   sender.Port,
+			Params: sip.NewParams(),
 		},
 		Params: sip.NewParams(),
 	})
 	req.AppendHeader(&sip.ToHeader{
 		DisplayName: strings.ToUpper(recipment.User),
-		Address: sip.Uri{
-			User:      recipment.User,
-			Host:      recipment.Host,
-			Port:      recipment.Port,
-			UriParams: sip.NewParams(),
+		Address: sip.SIPURI{
+			User:   recipment.User,
+			Host:   recipment.Host,
+			Port:   recipment.Port,
+			Params: sip.NewParams(),
 		},
 		Params: sip.NewParams(),
 	})
@@ -176,13 +176,13 @@ func TestUDPUAS(t *testing.T) {
 	// Fire up server
 	go srv.TransportLayer().ServeUDP(serverC)
 
-	sender := sip.Uri{
+	sender := sip.SIPURI{
 		User: "alice",
 		Host: client1Addr.IP.String(),
 		Port: client1Addr.Port,
 	}
 
-	recipment := sip.Uri{
+	recipment := sip.SIPURI{
 		User: "bob",
 		Host: serverAddr.IP.String(),
 		Port: serverC.LAddr.Port,
@@ -275,13 +275,13 @@ func TestTCPUAS(t *testing.T) {
 	// Fire up server
 	go srv.TransportLayer().ServeTCP(listener)
 
-	sender := sip.Uri{
+	sender := sip.SIPURI{
 		User: "alice",
 		Host: client1Addr.IP.String(),
 		Port: client1Addr.Port,
 	}
 
-	recipment := sip.Uri{
+	recipment := sip.SIPURI{
 		User: "bob",
 		Host: serverAddr.IP.String(),
 		Port: serverC.LAddr.Port,

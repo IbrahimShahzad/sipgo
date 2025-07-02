@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -253,7 +254,7 @@ func (hs *headers) RemoveHeader(name string) (removed bool) {
 	for idx, entry := range hs.headerOrder {
 		if entry.Name() == name {
 			foundIdx = idx
-			hs.headerOrder = append(hs.headerOrder[:idx], hs.headerOrder[idx+1:]...)
+			hs.headerOrder = slices.Delete(hs.headerOrder, idx, idx+1)
 			hs.unref(entry)
 			break
 		}
@@ -478,7 +479,7 @@ func (h *genericHeader) headerClone() Header {
 type ToHeader struct {
 	// The display name from the header, may be omitted.
 	DisplayName string
-	Address     Uri
+	Address     SIPURI
 	// Any parameters present in the header.
 	Params HeaderParams
 }
@@ -555,7 +556,7 @@ type FromHeader struct {
 	// The display name from the header, may be omitted.
 	DisplayName string
 
-	Address Uri
+	Address SIPURI
 
 	// Any parameters present in the header.
 	Params HeaderParams
@@ -631,7 +632,7 @@ func (h *FromHeader) AsTo() ToHeader {
 type ContactHeader struct {
 	// The display name from the header, may be omitted.
 	DisplayName string
-	Address     Uri
+	Address     SIPURI
 	// Any parameters present in the header.
 	Params HeaderParams
 }
@@ -951,7 +952,7 @@ func (h *ContentTypeHeader) headerClone() Header { return h }
 
 // RouteHeader  is Route header representation.
 type RouteHeader struct {
-	Address Uri
+	Address SIPURI
 }
 
 func (h *RouteHeader) Name() string { return "Route" }
@@ -993,7 +994,7 @@ func (h *RouteHeader) Clone() *RouteHeader {
 
 // RecordRouteHeader is Record-Route header representation.
 type RecordRouteHeader struct {
-	Address Uri
+	Address SIPURI
 }
 
 func (h *RecordRouteHeader) Name() string { return "Record-Route" }
@@ -1035,7 +1036,7 @@ func (h *RecordRouteHeader) Clone() *RecordRouteHeader {
 
 // ReferToHeader is Refer-To header representation.
 type ReferToHeader struct {
-	Address Uri
+	Address SIPURI
 }
 
 func (h *ReferToHeader) Name() string { return "Refer-To" }
@@ -1078,7 +1079,7 @@ func (h *ReferToHeader) Clone() *ReferToHeader {
 // ReferredByHeader is Referred-By header representation.
 type ReferredByHeader struct {
 	DisplayName string
-	Address     Uri
+	Address     SIPURI
 	Params      HeaderParams
 }
 

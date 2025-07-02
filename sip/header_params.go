@@ -2,6 +2,7 @@ package sip
 
 import (
 	"io"
+	"maps"
 	"strings"
 )
 
@@ -21,9 +22,7 @@ func NewParams() HeaderParams {
 // Items returns the entire parameter map.
 func (hp HeaderParams) Items() map[string]string {
 	m := make(map[string]string, len(hp))
-	for k, v := range hp {
-		m[k] = v
-	}
+	maps.Copy(m, hp)
 	return m
 }
 
@@ -79,7 +78,7 @@ func (hp HeaderParams) clone() HeaderParams {
 // ToString renders params to a string.
 // Note that this does not escape special characters, this should already have been done before calling this method.
 func (hp HeaderParams) ToString(sep uint8) string {
-	if hp == nil || len(hp) == 0 {
+	if len(hp) == 0 {
 		return ""
 	}
 
@@ -107,7 +106,7 @@ func (hp HeaderParams) ToString(sep uint8) string {
 
 // ToStringWrite is same as ToString but it stores to defined buffer instead returning string
 func (hp HeaderParams) ToStringWrite(sep uint8, buffer io.StringWriter) {
-	if hp == nil || len(hp) == 0 {
+	if len(hp) == 0 {
 		return
 	}
 

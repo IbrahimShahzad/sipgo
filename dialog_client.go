@@ -165,7 +165,7 @@ func (s *DialogClientSession) buildReq(req *sip.Request) {
 
 			// Now check top most route header with lazy header parsing
 			rh := req.Route()
-			if !rh.Address.UriParams.Has("lr") {
+			if !rh.Address.Params.Has("lr") {
 				// this is strict routing
 				req.Recipient = rh.Address
 			}
@@ -625,7 +625,7 @@ func (s *DialogClientCache) MatchRequestDialog(req *sip.Request) (*DialogClientS
 // This is actually not yet dialog (ID is empty)
 // You need to call WaitAnswer after for establishing dialog
 // For passing custom Invite request use WriteInvite
-func (c *DialogClientCache) Invite(ctx context.Context, recipient sip.Uri, body []byte, headers ...sip.Header) (*DialogClientSession, error) {
+func (c *DialogClientCache) Invite(ctx context.Context, recipient sip.SIPURI, body []byte, headers ...sip.Header) (*DialogClientSession, error) {
 	dt, err := c.ua.Invite(ctx, recipient, body, headers...)
 	if err != nil {
 		return nil, err

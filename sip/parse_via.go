@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+var (
+	errMalformedViaHdrProtoName = errors.New("malformed protocol name in Via header")
+	errMalformedViaHdrProtoV    = errors.New("malformed protocol version in Via header")
+	errMalformedViaHdrTransp    = errors.New("malformed transport in Via header")
+)
+
 func headerParserVia(headerName string, headerText string) (
 	header Header, err error) {
 	// sections := strings.Split(headerText, ",")
@@ -50,7 +56,7 @@ type viaFSM func(h *ViaHeader, s string) (viaFSM, int, error)
 func viaStateProtocol(h *ViaHeader, s string) (viaFSM, int, error) {
 	ind := strings.IndexRune(s, '/')
 	if ind < 0 {
-		return nil, 0, errors.New("Malformed protocol name in Via header")
+		return nil, 0, errMalformedViaHdrProtoName
 	}
 	h.ProtocolName = strings.TrimSpace(s[:ind])
 	return viaStateProtocolVersion, ind + 1, nil
@@ -59,7 +65,7 @@ func viaStateProtocol(h *ViaHeader, s string) (viaFSM, int, error) {
 func viaStateProtocolVersion(h *ViaHeader, s string) (viaFSM, int, error) {
 	ind := strings.IndexRune(s, '/')
 	if ind < 0 {
-		return nil, 0, errors.New("Malformed protocol version in Via header")
+		return nil, 0, errMalformedViaHdrProtoV
 	}
 	h.ProtocolVersion = strings.TrimSpace(s[:ind])
 	return viaStateProtocolTransport, ind + 1, nil
@@ -68,7 +74,7 @@ func viaStateProtocolVersion(h *ViaHeader, s string) (viaFSM, int, error) {
 func viaStateProtocolTransport(h *ViaHeader, s string) (viaFSM, int, error) {
 	ind := strings.IndexAny(s, " \t")
 	if ind < 0 {
-		return nil, 0, errors.New("Malformed transport in Via header")
+		return nil, 0, errMalformedViaHdrTransp
 	}
 	h.Transport = strings.TrimSpace(s[:ind])
 	return viaStateHost, ind + 1, nil

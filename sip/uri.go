@@ -6,10 +6,82 @@ import (
 	"strings"
 )
 
-// Uri is parsed form of
+type URIScheme int
+
+const (
+	URISchemeError URIScheme = iota - 1
+	URISchemeSIP
+	URISchemeSIPS
+	URISchemeTEL
+	URISchemeURN
+	URISchemeUnknown
+)
+
+type URI interface {
+	String() string
+	GetScheme() string
+}
+
+type TELURI struct {
+	// Scheme is the scheme of the URI, e.g. "tel"
+	Scheme string
+	// Wildcard is true if the URI is a wildcard URI, e.g. "tel:*"
+	Wildcard bool
+	// HierarhicalSlashes is true if the URI has hierarchical slashes, e.g. "tel://"
+	HierarhicalSlashes bool
+	// User is the user part of the URI, e.g. "1234567890
+	Number string
+	// Params are the URI parameters, e.g. ";isub=1234;
+	Params HeaderParams
+	// Headers are the URI headers, e.g. "?header1=value1&header2=value2"
+	Headers HeaderParams
+}
+
+func (uri *TELURI) String() string {
+	var buffer strings.Builder
+	uri.StringWrite(&buffer)
+	return buffer.String()
+}
+
+func (uri *TELURI) GetScheme() string {
+	// For backward compatibility. No scheme defaults to tel
+	if uri.Scheme == "" {
+		return "tel"
+	}
+	return uri.Scheme
+}
+
+// StringWrite writes uri string to buffer
+func (uri *TELURI) StringWrite(buffer io.StringWriter) {
+	// Normally we expect sip or sips, but it can be tel, urn
+	scheme := uri.Scheme
+	// For backward compatibility. No scheme defaults to sip
+	if uri.Scheme == "" {
+		scheme = "tel"
+	}
+
+	buffer.WriteString(scheme)
+	buffer.WriteString(":")
+
+	if uri.HierarhicalSlashes {
+		buffer.WriteString("//")
+	}
+
+	if uri.Number != "" {
+		buffer.WriteString(uri.Number)
+	}
+
+	if (uri.Params != nil) && uri.Params.Length() > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(uri.Params.ToString(';'))
+	}
+
+}
+
+// SIPURI is parsed form of
 // sip:user:password@host:port;uri-parameters?headers
 // In case of `sips:“ Encrypted is set to true
-type Uri struct {
+type SIPURI struct {
 	Scheme string
 
 	// If value is star (*)
@@ -37,15 +109,19 @@ type Uri struct {
 	// These are used to provide information about requests that may be constructed from the URI.
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
-	UriParams HeaderParams
+	Params HeaderParams
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
 	Headers HeaderParams
 }
 
+func (uri *SIPURI) GetScheme() string {
+	return uri.Scheme
+}
+
 // Generates the string representation of a SipUri struct.
-func (uri *Uri) String() string {
+func (uri *SIPURI) String() string {
 	var buffer strings.Builder
 	uri.StringWrite(&buffer)
 
@@ -53,7 +129,7 @@ func (uri *Uri) String() string {
 }
 
 // StringWrite writes uri string to buffer
-func (uri *Uri) StringWrite(buffer io.StringWriter) {
+func (uri *SIPURI) StringWrite(buffer io.StringWriter) {
 	// Normally we expect sip or sips, but it can be tel, urn
 	scheme := uri.Scheme
 	// For backward compatibility. No scheme defaults to sip
@@ -87,9 +163,9 @@ func (uri *Uri) StringWrite(buffer io.StringWriter) {
 		buffer.WriteString(strconv.Itoa(uri.Port))
 	}
 
-	if (uri.UriParams != nil) && uri.UriParams.Length() > 0 {
+	if (uri.Params != nil) && uri.Params.Length() > 0 {
 		buffer.WriteString(";")
-		buffer.WriteString(uri.UriParams.ToString(';'))
+		buffer.WriteString(uri.Params.ToString(';'))
 	}
 
 	if (uri.Headers != nil) && uri.Headers.Length() > 0 {
@@ -99,10 +175,10 @@ func (uri *Uri) StringWrite(buffer io.StringWriter) {
 }
 
 // Clone
-func (uri *Uri) Clone() *Uri {
+func (uri *SIPURI) Clone() *SIPURI {
 	c := *uri
-	if uri.UriParams != nil {
-		c.UriParams = uri.UriParams.clone()
+	if uri.Params != nil {
+		c.Params = uri.Params.clone()
 	}
 	if uri.Headers != nil {
 		c.Headers = uri.Headers.clone()
@@ -111,12 +187,12 @@ func (uri *Uri) Clone() *Uri {
 }
 
 // IsEncrypted returns true if uri is SIPS uri
-func (uri *Uri) IsEncrypted() bool {
+func (uri *SIPURI) IsEncrypted() bool {
 	return uri.Scheme == "sips"
 }
 
 // Endpoint is uri user identifier. user@host[:port]
-func (uri *Uri) Endpoint() string {
+func (uri *SIPURI) Endpoint() string {
 	addr := uri.User + "@" + uri.Host
 	if uri.Port > 0 {
 		addr += ":" + strconv.Itoa(uri.Port)
@@ -125,7 +201,7 @@ func (uri *Uri) Endpoint() string {
 }
 
 // Addr is uri part without headers and params. sip[s]:user@host[:port]
-func (uri *Uri) Addr() string {
+func (uri *SIPURI) Addr() string {
 	scheme := uri.Scheme
 	// For backward compatibility. No scheme defaults to sip
 	if uri.Scheme == "" {
@@ -147,7 +223,7 @@ func (uri *Uri) Addr() string {
 }
 
 // HostPort represents host:port part
-func (uri *Uri) HostPort() string {
+func (uri *SIPURI) HostPort() string {
 	p := strconv.Itoa(uri.Port)
 	return uri.Host + ":" + p
 }
