@@ -12,7 +12,7 @@ type telUriFSM func(uri *TELURI, s string) (telUriFSM, string, error)
 
 func ParseURI(uriStr string) (URI, error) {
 	scheme := URISchemeError
-	l := min(len(uriStr), 4)
+	l := min(len(uriStr), 5)
 	for i := range l {
 		if c := uriStr[i]; c == ':' {
 			scheme = detectScheme(uriStr[:i])
@@ -94,8 +94,8 @@ func uriStateScheme(uri *SIPURI, s string) (sipUriFSM, string, error) {
 	for i, c := range s {
 		if c == ':' {
 			scheme := detectScheme(ASCIIToLower(s[:i]))
-			if scheme != URISchemeSIP {
-				return nil, "", fmt.Errorf("Invalid scheme %d", scheme)
+			if scheme != URISchemeSIP && scheme != URISchemeSIPS {
+				return nil, "", fmt.Errorf("invalid scheme %d", scheme)
 			}
 			uri.Scheme = scheme
 			return uriStateSlashes, s[i+1:], nil

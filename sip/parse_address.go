@@ -34,8 +34,8 @@ func ParseAddressValue(addressText string, headerParams HeaderParams) (address *
 	}
 
 	err = parseNameAddress(addressText, &a)
-	if a.URI == nil {
-		panic("why is this panic")
+	if err != nil {
+		return nil, err
 	}
 	return &a, nil
 }
@@ -143,11 +143,21 @@ func addressStateUri(a *NameAddress, s string) (addressFSM, string, error) {
 	}
 
 	for i, c := range s {
+		if c == '*' {
+			a.URI = &SIPURI{
+				Scheme:   URISchemeSIP,
+				Host:     "*",
+				Wildcard: true,
+			}
+			return nil, "", nil
+		}
+
 		if c == ';' {
 			var err error
 			a.URI, err = ParseURI(s[:i])
 			return addressStateHeaderParams, s[i+1:], err
 		}
+
 	}
 
 	// No header params detected
@@ -206,12 +216,7 @@ func headerParserTo(headerName string, headerText string) (header Header, err er
 
 func parseToHeader(headerText string, h *ToHeader) error {
 	var err error
-
-	h.Params = NewParams()
-	th, err := ParseAddressValue(headerText, h.Params)
-	h = &ToHeader{
-		NameAddress: th,
-	}
+	h.NameAddress, err = ParseAddressValue(headerText, NewParams())
 	if err != nil {
 		return err
 	}
@@ -240,9 +245,8 @@ func headerParserFrom(headerName string, headerText string) (header Header, err 
 func parseFromHeader(headerText string, h *FromHeader) error {
 	var err error
 
-	h.Params = NewParams()
 	// h.DisplayName, err = ParseAddressValue(headerText, h.Address, h.Params)
-	h.NameAddress, err = ParseAddressValue(headerText, h.Params)
+	h.NameAddress, err = ParseAddressValue(headerText, NewParams())
 	// h.DisplayName, h.Address, h.Params, err = ParseAddressValue(headerText)
 	if err != nil {
 		return err
@@ -264,7 +268,11 @@ func parseFromHeader(headerText string, h *FromHeader) error {
 }
 
 func headerParserContact(headerName string, headerText string) (header Header, err error) {
-	h := ContactHeader{}
+	h := ContactHeader{
+		NameAddress: &NameAddress{
+			Params: NewParams(),
+		},
+	}
 	return &h, parseContactHeader(headerText, &h)
 }
 
@@ -298,8 +306,11 @@ func parseContactHeader(headerText string, h *ContactHeader) error {
 		}
 	}
 
+	if h == nil {
+		panic("ContactHeader is nil")
+	}
+
 	var e error
-	h.Params = NewParams()
 	h.NameAddress, e = ParseAddressValue(headerText[:endInd], h.Params)
 	if e != nil {
 		return e
@@ -396,7 +407,11 @@ func parseRouteAddress(headerText string, address *SIPURI) (err error) {
 				return e
 			}
 			// should be a SIP
-			address = nameAddress.URI.(*SIPURI)
+			addr, ok := nameAddress.URI.(*SIPURI)
+			if !ok {
+				return fmt.Errorf("expected SIPURI, got %T", nameAddress.URI)
+			}
+			*address = *addr
 			break
 		}
 	}

@@ -17,7 +17,7 @@ func TestParseAddressValue(t *testing.T) {
 		addr, err := ParseAddressValue(address, params)
 		suri, ok := addr.URI.(*SIPURI)
 		if !ok {
-			t.Errorf("could not convert to sip")
+			t.Errorf("could not convert to sip %+v", addr)
 			t.FailNow()
 		}
 		uri = *suri
@@ -125,6 +125,66 @@ func TestParseAddressValue(t *testing.T) {
 		assert.Equal(t, 1, uri.Params.Length())
 		assert.Equal(t, "phone", user)
 
+	})
+
+	t.Run("tel uri", func(t *testing.T) {
+		address := "tel:1215174826"
+		uri := TELURI{}
+		params := NewParams()
+		addr, err := ParseAddressValue(address, params)
+		require.NoError(t, err)
+		suri, ok := addr.URI.(*TELURI)
+		if !ok {
+			t.Errorf("could not convert to TELURI")
+			t.FailNow()
+		}
+		uri = *suri
+
+		assert.Equal(t, "", addr.DisplayName)
+		assert.Equal(t, "1215174826", uri.Number)
+		assert.Equal(t, URISchemeTEL, uri.Scheme)
+		assert.Equal(t, HeaderParams{}, uri.Params)
+		assert.Equal(t, false, uri.IsEncrypted())
+	})
+
+	t.Run("tel uri with global", func(t *testing.T) {
+		address := "tel:+1215174826"
+		uri := TELURI{}
+		params := NewParams()
+		addr, err := ParseAddressValue(address, params)
+		require.NoError(t, err)
+		suri, ok := addr.URI.(*TELURI)
+		if !ok {
+			t.Errorf("could not convert to TELURI")
+			t.FailNow()
+		}
+		uri = *suri
+
+		assert.Equal(t, "", addr.DisplayName)
+		assert.Equal(t, "+1215174826", uri.Number)
+		assert.Equal(t, URISchemeTEL, uri.Scheme)
+		assert.Equal(t, HeaderParams{}, uri.Params)
+		assert.Equal(t, false, uri.IsEncrypted())
+	})
+
+	t.Run("tel uri with visual identifiers", func(t *testing.T) {
+		address := "tel:+121-517-4826"
+		uri := TELURI{}
+		params := NewParams()
+		addr, err := ParseAddressValue(address, params)
+		require.NoError(t, err)
+		suri, ok := addr.URI.(*TELURI)
+		if !ok {
+			t.Errorf("could not convert to TELURI")
+			t.FailNow()
+		}
+		uri = *suri
+
+		assert.Equal(t, "", addr.DisplayName)
+		assert.Equal(t, "+121-517-4826", uri.Number)
+		assert.Equal(t, URISchemeTEL, uri.Scheme)
+		assert.Equal(t, HeaderParams{}, uri.Params)
+		assert.Equal(t, false, uri.IsEncrypted())
 	})
 
 }

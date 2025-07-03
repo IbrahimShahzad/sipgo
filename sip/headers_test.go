@@ -35,7 +35,7 @@ func BenchmarkHeadersPrepend(b *testing.B) {
 	var header Header = &ViaHeader{}
 
 	b.Run("Append", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			newOrder := make([]Header, 1, len(hs.headerOrder)+1)
 			newOrder[0] = header
 			hs.headerOrder = append(newOrder, hs.headerOrder...)
@@ -44,7 +44,7 @@ func BenchmarkHeadersPrepend(b *testing.B) {
 
 	// Our version must be faster than GOSIP
 	b.Run("Assign", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			newOrder := make([]Header, len(hs.headerOrder)+1)
 			newOrder[0] = header
 			for i, h := range hs.headerOrder {
@@ -78,7 +78,7 @@ func BenchmarkLazyParsing(b *testing.B) {
 	headers := new(headers)
 	headers.AppendHeader(NewHeader("Contact", "<sip:alice@example.com>"))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		c := headers.Contact()
 		if c == nil {
 			b.Fatal("contact is nil")

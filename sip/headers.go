@@ -378,7 +378,9 @@ func (hs *headers) ContentType() *ContentTypeHeader {
 // Contact returns underlying Contact parsed header or nil if not exists
 func (hs *headers) Contact() *ContactHeader {
 	if hs.contact == nil {
-		h := &ContactHeader{}
+		h := &ContactHeader{
+			NameAddress: &NameAddress{},
+		}
 		if parseHeaderLazy(hs, parseContactHeader, []string{"contact", "m"}, h) {
 			hs.contact = h
 		}
@@ -501,6 +503,11 @@ func (h *ToHeader) Value() string {
 }
 
 func (h *ToHeader) ValueStringWrite(buffer io.StringWriter) {
+	if h.NameAddress == nil {
+		slog.Error("ToHeader.NameAddress is nil, cannot write To header")
+		return
+	}
+
 	if h.DisplayName != "" {
 		buffer.WriteString("\"")
 		buffer.WriteString(h.DisplayName)
@@ -670,7 +677,7 @@ func (h *ContactHeader) valueWrite(buffer io.StringWriter) {
 		buffer.WriteString("\" ")
 	}
 
-	buffer.WriteString("<" + h.URI.Addr() + ">")
+	buffer.WriteString("<" + h.URI.String() + ">")
 
 	if (h.Params != nil) && (h.Params.Length() > 0) {
 		buffer.WriteString(";")
