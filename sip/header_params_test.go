@@ -51,7 +51,7 @@ func BenchmarkHeaderParams(b *testing.B) {
 
 	// Our version must be faster than GOSIP
 	b.Run("MAP", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			hp := NewParams()
 			testParams(b, hp)
 		}
