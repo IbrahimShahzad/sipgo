@@ -288,7 +288,10 @@ func telStateSlashes(uri *TELURI, s string) (telUriFSM, string, error) {
 
 func isTelChar(c rune) bool {
 	// We allow digits, plus, minus, dot, and some special chars
-	return (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '.' || c == '*' || c == '#' || c == ';' || c == '&'
+	return (c >= '0' && c <= '9') ||
+		c == '+' || c == '-' || c == '.' ||
+		c == '*' || c == '#' || c == ';' ||
+		c == '&' || c == '(' || c == ')'
 }
 
 func telStateNumber(uri *TELURI, s string) (telUriFSM, string, error) {
@@ -315,7 +318,7 @@ func telStateParams(uri *TELURI, s string) (telUriFSM, string, error) {
 		return nil, s, nil
 	}
 	uri.Params = NewParams()
-	n, err = UnmarshalParams(s, ';', '0', uri.Params)
+	n, err = UnmarshalParams(s, ';', 0, uri.Params)
 	if err != nil {
 		return nil, s, err
 	}

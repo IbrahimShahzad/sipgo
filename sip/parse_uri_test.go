@@ -220,6 +220,7 @@ func TestParseTELURI(t *testing.T) {
 	// tel:+1-201-555-0123
 	// tel:7042;phone-context=example.com
 	// tel:863-1234;phone-context=+1-914-555
+	// tel:+12-(34)-56-78;Ext=200;ISUB=+123-456
 
 	t.Run("basic tel uri", func(t *testing.T) {
 		uri := &TELURI{}
@@ -236,7 +237,9 @@ func TestParseTELURI(t *testing.T) {
 		err := ParseTELURI(str, uri)
 		require.NoError(t, err)
 		assert.Equal(t, "7042", uri.Number)
-		// assert.Equal(t, "", uri.Host)
+		pCtx, ok := uri.Params.Get("phone-context")
+		require.True(t, ok)
+		assert.Equal(t, "example.com", pCtx)
 	})
 
 	t.Run("tel uri with prefix", func(t *testing.T) {
@@ -245,8 +248,61 @@ func TestParseTELURI(t *testing.T) {
 		err := ParseTELURI(str, uri)
 		require.NoError(t, err)
 		assert.Equal(t, "863-1234", uri.Number)
-		// assert.Equal(t, "", uri.Host)
+		pCtx, ok := uri.Params.Get("phone-context")
+		require.True(t, ok)
+		assert.Equal(t, "+1-914-555", pCtx)
 	})
+
+	t.Run("tel uri params", func(t *testing.T) {
+		uri := &TELURI{}
+		str := "tel:+12-(34)-56-78;Ext=200;ISUB=+123-456"
+		err := ParseTELURI(str, uri)
+		require.NoError(t, err)
+		assert.Equal(t, "+12-(34)-56-78", uri.Number)
+		ext, ok := uri.Params.Get("Ext")
+		require.True(t, ok)
+		assert.Equal(t, "200", ext)
+		isub, ok := uri.Params.Get("ISUB")
+		require.True(t, ok)
+		assert.Equal(t, "+123-456", isub)
+	})
+}
+
+func TestTEL2SIPURI(t *testing.T) {
+	t.Run("error tel uri to sip without phone-contex", func(t *testing.T) {
+		tel := &TELURI{}
+		str := "tel:+1-201-555-0123"
+		err := ParseTELURI(str, tel)
+		require.NoError(t, err)
+
+		sip := &SIPURI{}
+		err = tel.TELtoSIP(sip)
+		require.Error(t, err)
+	})
+
+	t.Run("tel2sip with context to sip", func(t *testing.T) {
+		tel := &TELURI{}
+		str := "tel:+1-201-555-0123;phone-context=example.com"
+		err := ParseTELURI(str, tel)
+		require.NoError(t, err)
+
+		sip := &SIPURI{}
+		err = tel.TELtoSIP(sip)
+		require.NoError(t, err)
+		assert.Equal(t, "sip:+12015550123@example.com;user-context=phone", sip.String())
+	})
+
+	t.Run("tel2sip with params", func(t *testing.T) {
+		uri := &TELURI{}
+		str := "tel:+12-(34)-56-78;Ext=200;ISUB=+123-456;phone-context=example.com"
+		err := ParseTELURI(str, uri)
+		require.NoError(t, err)
+		sip := &SIPURI{}
+		err = uri.TELtoSIP(sip)
+		require.NoError(t, err)
+		assert.Equal(t, "sip:+12345678@example.com;Ext=200;ISUB=+123-456;user-context=phone", sip.String())
+	})
+
 }
 
 func TestParseUri(t *testing.T) {

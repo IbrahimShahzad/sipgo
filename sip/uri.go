@@ -67,8 +67,6 @@ type TELURI struct {
 	Params HeaderParams
 	// Headers are the URI headers, e.g. "?header1=value1&header2=value2"
 	Headers HeaderParams
-
-	host string // to convert to sip uri
 }
 
 func (u *TELURI) String() string {
@@ -146,12 +144,14 @@ func (u *TELURI) IsEncrypted() bool {
 }
 
 func (u *TELURI) TELtoSIP(uri *SIPURI) error {
-	if u.host == "" {
-		return errors.New("set the host to use when converting to SIPURI")
+	domain, ok := u.Params.Get("phone-context")
+	if !ok || domain == "" {
+		return errors.New("phone-context parameter is required for TEL-URI to SIP conversion")
 	}
-	uri.User = u.Number
+	u.Params.Remove("phone-context")
+	uri.User = removeVisualFromNumber(u.Number)
 	// should come from config
-	uri.Host = u.host
+	uri.Host = domain
 	uri.HierarhicalSlashes = u.HierarhicalSlashes
 	uri.Params = u.Params
 	uri.Params.Add("user-context", "phone")
@@ -167,15 +167,27 @@ func (u *TELURI) SetHeaders(h HeaderParams) error {
 }
 
 func (u *TELURI) SetHost(s string) error {
-	if s == "*" {
-		return errors.New("wildcard not allowed for TEL-URI")
-	}
-	u.host = s
-	return nil
+	return errors.New("host not allowed for TEL-URI")
 }
 
 func (u *TELURI) SetUser(s string) {
 	u.Number = s
+}
+
+// Remove all non-numeric characters from the number
+// except for the '+' sign at the beginning
+func removeVisualFromNumber(number string) string {
+	var sb strings.Builder
+	for i, r := range number {
+		if i == 0 && r == '+' {
+			sb.WriteRune(r)
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
 }
 
 // SIPURI is parsed form of
@@ -355,6 +367,7 @@ func (u *SIPURI) SetHost(s string) error {
 	u.Host = s
 	return nil
 }
+
 func (u *SIPURI) SetUser(s string) {
 	u.User = s
 }
