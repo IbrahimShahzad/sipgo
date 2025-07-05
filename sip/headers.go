@@ -541,15 +541,20 @@ func (h *ToHeader) headerClone() Header {
 		return newTo
 	}
 
+	if h.NameAddress == nil {
+		return &ToHeader{}
+	}
+
 	newTo = &ToHeader{
 		NameAddress: &NameAddress{
 			DisplayName: h.DisplayName,
-			URI:         h.URI.Clone(),
 		},
 	}
-	// if h.Address != nil {
-	// 	newTo.Address = h.Address.Clone()
-	// }
+
+	if h.URI != nil {
+		newTo.URI = h.URI.Clone()
+	}
+
 	if h.Params != nil {
 		newTo.Params = h.Params.Clone()
 	}
@@ -603,15 +608,20 @@ func (h *FromHeader) headerClone() Header {
 		return newFrom
 	}
 
+	if h.NameAddress == nil {
+		return &FromHeader{}
+	}
+
 	newFrom = &FromHeader{
 		NameAddress: &NameAddress{
 			DisplayName: h.DisplayName,
-			URI:         h.URI.Clone(),
 		},
 	}
-	// if h.Address != nil {
-	// 	newFrom.Address = h.Address.Clone()
-	// }
+
+	if h.URI != nil {
+		newFrom.URI = h.URI.Clone()
+	}
+
 	if h.Params != nil {
 		newFrom.Params = h.Params.Clone()
 	}
@@ -696,11 +706,18 @@ func (h *ContactHeader) Clone() *ContactHeader {
 		return newCnt
 	}
 
+	if h.NameAddress == nil {
+		return &ContactHeader{}
+	}
+
 	newCnt = &ContactHeader{
 		NameAddress: &NameAddress{
 			DisplayName: h.DisplayName,
-			URI:         h.URI.Clone(),
 		},
+	}
+
+	if h.URI != nil {
+		newCnt.URI = h.URI.Clone()
 	}
 
 	if h.Params != nil {

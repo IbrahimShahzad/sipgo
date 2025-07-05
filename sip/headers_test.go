@@ -105,3 +105,20 @@ func TestCopyHeaders(t *testing.T) {
 	require.Equal(t, "Record-Route: <sip:p1:5060;lr;transport=udp>", hdrs[0].String())
 	require.Equal(t, "Record-Route: <sip:p2:5060;lr>", hdrs[1].String())
 }
+
+func TestHeaderClone(t *testing.T) {
+	via := &ViaHeader{
+		ProtocolName:    "SIP",
+		ProtocolVersion: "2.0",
+		Host:            "test.com",
+		Port:            5060,
+		Params:          map[string]string{"branch": "z9hG4bKabcdef"},
+	}
+	clone := via.Clone()
+	assert.Equal(t, via.ProtocolName, clone.ProtocolName)
+	assert.Equal(t, via.ProtocolVersion, clone.ProtocolVersion)
+	assert.Equal(t, via.Host, clone.Host)
+	assert.Equal(t, via.Port, clone.Port)
+	assert.Equal(t, via.Params, clone.Params)
+	assert.NotSame(t, via, clone, "Clone should not be the same instance")
+}

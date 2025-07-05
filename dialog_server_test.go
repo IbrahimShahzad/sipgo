@@ -29,9 +29,9 @@ func TestDialogServerByeRequest(t *testing.T) {
 
 	invite, _, _ := createTestInvite(t, "sip:uas@uas.com", "udp", "uas.com:5090")
 	invite.AppendHeader(&sip.ContactHeader{NameAddress: &sip.NameAddress{URI: &sip.SIPURI{Host: "uas", Port: 1234}}})
-	invite.AppendHeader(&sip.ContactHeader{NameAddress: &sip.NameAddress{URI: &sip.SIPURI{Host: "P1", Port: 5060}}})
-	invite.AppendHeader(&sip.ContactHeader{NameAddress: &sip.NameAddress{URI: &sip.SIPURI{Host: "P2", Port: 5060}}})
-	invite.AppendHeader(&sip.ContactHeader{NameAddress: &sip.NameAddress{URI: &sip.SIPURI{Host: "P3", Port: 5060}}})
+	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.SIPURI{Host: "P1", Port: 5060}})
+	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.SIPURI{Host: "P2", Port: 5060}})
+	invite.AppendHeader(&sip.RecordRouteHeader{Address: sip.SIPURI{Host: "P3", Port: 5060}})
 
 	dialog, err := dialogSrv.ReadInvite(invite, sip.NewServerTx("test", invite, nil, slog.Default()))
 	require.NoError(t, err)
