@@ -84,6 +84,98 @@ func TestASCIIToLower(t *testing.T) {
 	assert.Equal(t, "cseq", val)
 }
 
+func TestASCIIToLowerInPlace(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected []byte
+	}{
+		{
+			name:     "All uppercase",
+			input:    []byte("ABCDEF"),
+			expected: []byte("abcdef"),
+		},
+		{
+			name:     "Mixed case",
+			input:    []byte("AbCdEf"),
+			expected: []byte("abcdef"),
+		},
+		{
+			name:     "All lowercase",
+			input:    []byte("abcdef"),
+			expected: []byte("abcdef"),
+		},
+		{
+			name:     "With numbers and symbols",
+			input:    []byte("A1B2C3!@#"),
+			expected: []byte("a1b2c3!@#"),
+		},
+		{
+			name:     "Empty slice",
+			input:    []byte(""),
+			expected: []byte(""),
+		},
+		{
+			name:     "Non-ASCII",
+			input:    []byte("ÀÁÂÃÄÅ"),
+			expected: []byte("ÀÁÂÃÄÅ"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			in := make([]byte, len(tc.input))
+			copy(in, tc.input)
+			ASCIIToLowerInPlace(in)
+			assert.Equal(t, tc.expected, in)
+		})
+	}
+}
+func TestASCIIToUpper(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "All lowercase",
+			input:    "abcdef",
+			expected: "ABCDEF",
+		},
+		{
+			name:     "Mixed case",
+			input:    "AbCdEf",
+			expected: "ABCDEF",
+		},
+		{
+			name:     "All uppercase",
+			input:    "ABCDEF",
+			expected: "ABCDEF",
+		},
+		{
+			name:     "With numbers and symbols",
+			input:    "a1b2c3!@#",
+			expected: "A1B2C3!@#",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "Non-ASCII",
+			input:    "àáâãäå",
+			expected: "àáâãäå",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out := ASCIIToUpper(tc.input)
+			assert.Equal(t, tc.expected, out)
+		})
+	}
+}
 func BenchmarkHeaderToLower(b *testing.B) {
 	//BenchmarkHeaderToLower-8   	1000000000	         1.033 ns/op	       0 B/op	       0 allocs/op
 	h := "Content-Type"

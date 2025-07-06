@@ -210,48 +210,48 @@ func SplitByWhitespace(text string) []string {
 }
 
 // A delimiter is any pair of characters used for quoting text (i.e. bulk escaping literals).
-type delimiter struct {
-	start uint8
-	end   uint8
-}
+// type delimiter struct {
+// 	start uint8
+// 	end   uint8
+// }
 
 // Define common quote characters needed in parsing.
-var quotesDelim = delimiter{'"', '"'}
+// var quotesDelim = delimiter{'"', '"'}
 
-var anglesDelim = delimiter{'<', '>'}
+// var anglesDelim = delimiter{'<', '>'}
 
 // Find the first instance of the target in the given text which is not enclosed in any delimiters
 // from the list provided.
-func findUnescaped(text string, target uint8, delims ...delimiter) int {
-	return findAnyUnescaped(text, string(target), delims...)
-}
+// func findUnescaped(text string, target uint8, delims ...delimiter) int {
+// 	return findAnyUnescaped(text, string(target), delims...)
+// }
 
 // Find the first instance of any of the targets in the given text that are not enclosed in any delimiters
 // from the list provided.
-func findAnyUnescaped(text string, targets string, delims ...delimiter) int {
-	escaped := false
-	var endEscape uint8 = 0
+// func findAnyUnescaped(text string, targets string, delims ...delimiter) int {
+// 	escaped := false
+// 	var endEscape uint8 = 0
 
-	endChars := make(map[uint8]uint8)
-	for _, delim := range delims {
-		endChars[delim.start] = delim.end
-	}
+// 	endChars := make(map[uint8]uint8)
+// 	for _, delim := range delims {
+// 		endChars[delim.start] = delim.end
+// 	}
 
-	for i := range len(text) {
-		if !escaped && strings.Contains(targets, string(text[i])) {
-			return i
-		}
+// 	for i := range len(text) {
+// 		if !escaped && strings.Contains(targets, string(text[i])) {
+// 			return i
+// 		}
 
-		if escaped {
-			escaped = text[i] != endEscape
-			continue
-		} else {
-			endEscape, escaped = endChars[text[i]]
-		}
-	}
+// 		if escaped {
+// 			escaped = text[i] != endEscape
+// 			continue
+// 		} else {
+// 			endEscape, escaped = endChars[text[i]]
+// 		}
+// 	}
 
-	return -1
-}
+// 	return -1
+// }
 
 // ResolveInterfaceIP will check current interfaces and resolve to IP
 // Using targetIP it will try to match interface with same subnet
@@ -353,7 +353,7 @@ func compareFunctions(fsm1 any, fsm2 any) error {
 	funcName1 := runtime.FuncForPC(reflect.ValueOf(fsm1).Pointer()).Name()
 	funcName2 := runtime.FuncForPC(reflect.ValueOf(fsm2).Pointer()).Name()
 	if funcName1 != funcName2 {
-		return fmt.Errorf("Functions are not equal f1=%q, f2=%q", funcName1, funcName2)
+		return fmt.Errorf("functions are not equal f1=%q, f2=%q", funcName1, funcName2)
 	}
 	return nil
 }

@@ -44,51 +44,40 @@ func (hp HeaderParams) Get(key string) (string, bool) {
 	return val, ok
 }
 
-// Add adds new key-value pair to params.
-// If key already exists, it will be overwritten.
+// Add adds one or more key-value pairs to params.
+// If a key already exists, its value will be overwritten.
 func (hp *HeaderParams) Add(pair ...Pair) *HeaderParams {
 	if hp == nil {
-		hp = NewParams()
+		newHp := NewParams()
+		return newHp.Add(pair...)
 	}
-	if hp.keys == nil {
-		hp.keys = make(map[string]int, len(pair))
+
+	if hp.keys == nil || hp.data == nil {
+		const defaultCapacity = 4
+		capacity := max(len(pair), defaultCapacity)
+		hp.keys = make(map[string]int, capacity)
+		hp.data = make([]Pair, 0, capacity)
 	}
-	if hp.data == nil {
-		hp.data = make([]Pair, 0, len(pair))
-	}
+
 	for _, p := range pair {
 		if i, exists := hp.keys[p.Key]; exists {
-			// if the index exists, update the value
-			// this is important to maintain order of keys
-			if i < len(hp.data) {
-				// update existing value
-				hp.data[i].Val = p.Val
-			} else {
-				// this should not happen, but just in case
-				hp.data = append(hp.data, Pair{Key: p.Key, Val: p.Val})
-			}
+			hp.data[i].Val = p.Val
 			continue
 		}
 		hp.keys[p.Key] = len(hp.data)
 		hp.data = append(hp.data, Pair{Key: p.Key, Val: p.Val})
 	}
-	// Note: only added to check during development
-	// make sure len of keys and data are equal
-	// if len(hp.keys) != len(hp.data) {
-	// 	// this should not happen, but just in case
-	// 	panic("HeaderParams keys and data length mismatch")
-	// }
 	return hp
 }
 
 // Remove removes param with exact key
 func (hp *HeaderParams) Remove(key string) *HeaderParams {
 	// remove key from keys map
-	if idx, exists := hp.keys[key]; exists {
-		hp.data = append(hp.data[:idx], hp.data[idx+1:]...)
+	if i, exists := hp.keys[key]; exists {
+		hp.data = append(hp.data[:i], hp.data[i+1:]...)
 		delete(hp.keys, key)
 		for k, v := range hp.keys {
-			if v > idx {
+			if v > i {
 				hp.keys[k] = v - 1
 			}
 		}

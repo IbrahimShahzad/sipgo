@@ -122,3 +122,50 @@ func TestHeaderClone(t *testing.T) {
 	assert.Equal(t, via.Params, clone.Params)
 	assert.NotSame(t, via, clone, "Clone should not be the same instance")
 }
+
+func TestHeaders_String(t *testing.T) {
+	t.Run("Empty headers", func(t *testing.T) {
+		hs := &headers{}
+		assert.Equal(t, "\r\n", hs.String())
+	})
+
+	t.Run("Single header", func(t *testing.T) {
+		hs := &headers{}
+		hs.AppendHeader(NewHeader("X-Test", "abc"))
+		assert.Equal(t, "X-Test: abc\r\n", hs.String())
+	})
+
+	t.Run("Multiple headers", func(t *testing.T) {
+		hs := &headers{}
+		hs.AppendHeader(NewHeader("X-First", "1"))
+		hs.AppendHeader(NewHeader("X-Second", "2"))
+		hs.AppendHeader(NewHeader("X-Third", "3"))
+		expected := "X-First: 1\r\nX-Second: 2\r\nX-Third: 3\r\n"
+		assert.Equal(t, expected, hs.String())
+	})
+
+	t.Run("Headers with special values", func(t *testing.T) {
+		hs := &headers{}
+		hs.AppendHeader(NewHeader("X-Empty", ""))
+		hs.AppendHeader(NewHeader("X-Colon", "a:b"))
+		expected := "X-Empty: \r\nX-Colon: a:b\r\n"
+		assert.Equal(t, expected, hs.String())
+	})
+
+	t.Run("Headers with known types", func(t *testing.T) {
+		hs := &headers{}
+		via := &ViaHeader{
+			ProtocolName:    "SIP",
+			ProtocolVersion: "2.0",
+			Transport:       "UDP",
+			Host:            "host.com",
+			Port:            5060,
+			Params:          NewParams().Add(Pair{"branch", "z9hG4bK"}),
+		}
+		callID := CallIDHeader("callid-123")
+		hs.AppendHeader(via)
+		hs.AppendHeader(&callID)
+		expected := "Via: SIP/2.0/UDP host.com:5060;branch=z9hG4bK\r\nCall-ID: callid-123\r\n"
+		assert.Equal(t, expected, hs.String())
+	})
+}
