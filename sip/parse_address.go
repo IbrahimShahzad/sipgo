@@ -15,7 +15,7 @@ var (
 type NameAddress struct {
 	DisplayName string
 	URI         URI
-	Params      HeaderParams
+	Params      *HeaderParams
 }
 
 type addressFSM func(dispName *NameAddress, s string) (addressFSM, string, error)
@@ -23,14 +23,14 @@ type addressFSM func(dispName *NameAddress, s string) (addressFSM, string, error
 // ParseAddressValue parses an address - such as from a From, To, or
 // Contact header. It returns:
 // See RFC 3261 section 20.10 for details on parsing an address.
-func ParseAddressValue(addressText string, headerParams HeaderParams) (address *NameAddress, err error) {
+func ParseAddressValue(addressText string) (address *NameAddress, err error) {
 	if len(addressText) == 0 {
 		return nil, errEmptyAddress
 	}
 
 	// adds alloc but easier to maintain
 	a := NameAddress{
-		Params: headerParams,
+		Params: NewParams(),
 	}
 
 	err = parseNameAddress(addressText, &a)
@@ -173,9 +173,7 @@ func addressStateHeaderParams(a *NameAddress, s string) (addressFSM, string, err
 		if equal > 0 {
 			name := s[:equal]
 			val := s[equal+1:]
-			if a.Params != nil {
-				a.Params.Add(name, val)
-			}
+			a.Params.Add(Pair{name, val})
 			return
 		}
 
@@ -186,9 +184,7 @@ func addressStateHeaderParams(a *NameAddress, s string) (addressFSM, string, err
 
 		// Case when we have key name but not value. ex ;+siptag;
 		name := s[:]
-		if a.Params != nil {
-			a.Params.Add(name, "")
-		}
+		a.Params.Add(Pair{name, ""})
 	}
 
 	equal := -1
@@ -216,7 +212,8 @@ func headerParserTo(headerName string, headerText string) (header Header, err er
 
 func parseToHeader(headerText string, h *ToHeader) error {
 	var err error
-	h.NameAddress, err = ParseAddressValue(headerText, NewParams())
+	// params := NewParams()
+	h.NameAddress, err = ParseAddressValue(headerText)
 	if err != nil {
 		return err
 	}
@@ -246,7 +243,8 @@ func parseFromHeader(headerText string, h *FromHeader) error {
 	var err error
 
 	// h.DisplayName, err = ParseAddressValue(headerText, h.Address, h.Params)
-	h.NameAddress, err = ParseAddressValue(headerText, NewParams())
+	// params := NewParams()
+	h.NameAddress, err = ParseAddressValue(headerText)
 	// h.DisplayName, h.Address, h.Params, err = ParseAddressValue(headerText)
 	if err != nil {
 		return err
@@ -311,7 +309,8 @@ func parseContactHeader(headerText string, h *ContactHeader) error {
 	}
 
 	var e error
-	h.NameAddress, e = ParseAddressValue(headerText[:endInd], h.Params)
+	// params := NewParams()
+	h.NameAddress, e = ParseAddressValue(headerText[:endInd])
 	if e != nil {
 		return e
 	}
@@ -360,8 +359,8 @@ func headerParserReferredBy(headerName string, headerText string) (header Header
 func parseReferredByHeader(headerText string, h *ReferredByHeader) error {
 	var err error
 
-	h.Params = NewParams()
-	h.NameAddress, err = ParseAddressValue(headerText, h.Params)
+	// h.Params = NewParams()
+	h.NameAddress, err = ParseAddressValue(headerText)
 	if err != nil {
 		return err
 	}
@@ -402,7 +401,8 @@ func parseRouteAddress(headerText string, address *SIPURI) (err error) {
 				continue
 			}
 
-			nameAddress, e := ParseAddressValue(headerText[:idx], nil)
+			// params := NewParams()
+			nameAddress, e := ParseAddressValue(headerText[:idx])
 			if e != nil {
 				return e
 			}

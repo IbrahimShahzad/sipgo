@@ -117,7 +117,7 @@ func uriStateSlashes(uri *SIPURI, s string) (sipUriFSM, string, error) {
 }
 
 func uriStateUser(uri *SIPURI, s string) (sipUriFSM, string, error) {
-	var userend int = 0
+	userend := 0
 	for i, c := range s {
 		if c == '[' {
 			// IPV6
@@ -181,6 +181,10 @@ func uriStateHostIPV6(uri *SIPURI, s string) (sipUriFSM, string, error) {
 		return nil, s, fmt.Errorf("IPV6 no closing bracket")
 	}
 	uri.Host = s[:ind+1]
+	if uri.Host == "[]" {
+		// This is an error, we don't allow empty IPV6
+		return nil, s, fmt.Errorf("IPV6 empty address")
+	}
 
 	if ind+1 == len(s) {
 		// finished
@@ -311,21 +315,21 @@ func telStateNumber(uri *TELURI, s string) (telUriFSM, string, error) {
 }
 
 func telStateParams(uri *TELURI, s string) (telUriFSM, string, error) {
-	var n int
+	// var n int
 	var err error
 	if len(s) == 0 {
 		uri.Params = NewParams()
 		return nil, s, nil
 	}
 	uri.Params = NewParams()
-	n, err = UnmarshalParams(s, ';', 0, uri.Params)
+	_, err = UnmarshalParams(s, ';', 0, uri.Params)
 	if err != nil {
 		return nil, s, err
 	}
 
-	if n == len(s) {
-		n = n - 1
-	}
+	// if n == len(s) {
+	// 	n = n - 1
+	// }
 
 	return nil, s, nil
 }

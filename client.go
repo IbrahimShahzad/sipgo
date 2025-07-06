@@ -334,7 +334,10 @@ func clientRequestBuildReq(c *Client, req *sip.Request) error {
 			from.URI.SetHost(c.host)
 		}
 
-		from.Params.Add("tag", sip.GenerateTagN(16))
+		from.Params.Add(sip.Pair{
+			Key: "tag",
+			Val: sip.GenerateTagN(16),
+		})
 		mustHeader = append(mustHeader, &from)
 	}
 
@@ -443,9 +446,9 @@ func clientRequestCreateVia(c *Client, r *sip.Request) *sip.ViaHeader {
 		Params:          sip.NewParams(),
 	}
 	// NOTE: Consider lenght of branch configurable
-	newvia.Params.Add("branch", sip.GenerateBranchN(16))
+	newvia.Params.Add(sip.Pair{"branch", sip.GenerateBranchN(16)})
 	if c.rport {
-		newvia.Params.Add("rport", "")
+		newvia.Params.Add(sip.Pair{"rport", ""})
 	}
 
 	if via := r.Via(); via != nil {
@@ -453,8 +456,9 @@ func clientRequestCreateVia(c *Client, r *sip.Request) *sip.ViaHeader {
 		// As proxy rport and received must be fullfiled
 		if via.Params.Has("rport") {
 			h, p, _ := net.SplitHostPort(r.Source())
-			via.Params.Add("rport", p)
-			via.Params.Add("received", h)
+			via.Params.Add(
+				sip.Pair{"rport", p},
+				sip.Pair{"received", h})
 		}
 	}
 	return newvia
@@ -470,12 +474,10 @@ func ClientRequestAddRecordRoute(c *Client, r *sip.Request) error {
 		Address: sip.SIPURI{
 			Host: c.host,
 			Port: port, // This must be listen port
-			Params: sip.HeaderParams{
-				// Transport must be provided as wesll
-				// https://datatracker.ietf.org/doc/html/rfc5658
-				"transport": sip.NetworkToLower(r.Transport()),
-				"lr":        "",
-			},
+			Params: sip.NewParams().
+				Add(
+					sip.Pair{"lr", ""},
+					sip.Pair{"transport", sip.NetworkToLower(r.Transport())}),
 			Headers: sip.NewParams(),
 		},
 	}

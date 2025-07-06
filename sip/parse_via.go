@@ -16,7 +16,7 @@ func headerParserVia(headerName string, headerText string) (
 	header Header, err error) {
 	// sections := strings.Split(headerText, ",")
 	h := ViaHeader{
-		Params: HeaderParams{},
+		Params: NewParams(),
 	}
 	return &h, parseViaHeader(headerText, &h)
 }

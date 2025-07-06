@@ -112,7 +112,7 @@ func TestHeaderClone(t *testing.T) {
 		ProtocolVersion: "2.0",
 		Host:            "test.com",
 		Port:            5060,
-		Params:          map[string]string{"branch": "z9hG4bKabcdef"},
+		Params:          NewParams().Add(Pair{"branch", "z9hG4bKabcdef"}),
 	}
 	clone := via.Clone()
 	assert.Equal(t, via.ProtocolName, clone.ProtocolName)

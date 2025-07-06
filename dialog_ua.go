@@ -36,7 +36,7 @@ func (c *DialogUA) ReadInvite(inviteReq *sip.Request, tx sip.ServerTransaction) 
 	if err != nil {
 		return nil, fmt.Errorf("generating dialog to tag failed: %w", err)
 	}
-	inviteReq.To().Params["tag"] = uuid.String()
+	inviteReq.To().Params.Add(sip.Pair{"tag", uuid.String()})
 	id, err := sip.UASReadRequestDialogID(inviteReq)
 	if err != nil {
 		return nil, err

@@ -9,8 +9,6 @@ import (
 	"strings"
 )
 
-const ()
-
 // Header is a single SIP header.
 type Header interface {
 	// Name returns underlying header name.
@@ -204,11 +202,6 @@ func (hs *headers) ReplaceHeader(header Header) {
 
 // Headers gets some headers.
 func (hs *headers) Headers() []Header {
-	// hdrs := make([]Header, 0)
-	// for _, key := range hs.headerOrder {
-	// 	hdrs = append(hdrs, hs.headers[key])
-	// }
-
 	return hs.headerOrder
 }
 
@@ -299,7 +292,9 @@ func (hs *headers) CallID() *CallIDHeader {
 // Via returns underlying Via parsed header or nil if not exists
 func (hs *headers) Via() *ViaHeader {
 	if hs.via == nil {
-		h := &ViaHeader{}
+		h := &ViaHeader{
+			Params: NewParams(),
+		}
 		if parseHeaderLazy(hs, parseViaHeader, []string{"via", "v"}, h) {
 			hs.via = h
 		}
@@ -310,7 +305,11 @@ func (hs *headers) Via() *ViaHeader {
 // From returns underlying From parsed header or nil if not exists
 func (hs *headers) From() *FromHeader {
 	if hs.from == nil {
-		h := &FromHeader{}
+		h := &FromHeader{
+			NameAddress: &NameAddress{
+				Params: NewParams(),
+			},
+		}
 		if parseHeaderLazy(hs, parseFromHeader, []string{"from", "f"}, h) {
 			hs.from = h
 		}
@@ -321,7 +320,11 @@ func (hs *headers) From() *FromHeader {
 // To returns underlying To parsed header or nil if not exists
 func (hs *headers) To() *ToHeader {
 	if hs.to == nil {
-		h := &ToHeader{}
+		h := &ToHeader{
+			NameAddress: &NameAddress{
+				Params: NewParams(),
+			},
+		}
 		if parseHeaderLazy(hs, parseToHeader, []string{"to", "t"}, h) {
 			hs.to = h
 		}
@@ -514,10 +517,9 @@ func (h *ToHeader) ValueStringWrite(buffer io.StringWriter) {
 		buffer.WriteString("\" ")
 	}
 
-	// buffer.WriteString(fmt.Sprintf("<%s>", h.Address))
 	buffer.WriteString("<" + h.URI.String() + ">")
 
-	if h.Params != nil && h.Params.Length() > 0 {
+	if h.Params.Length() > 0 {
 		buffer.WriteString(";")
 		h.Params.ToStringWrite(';', buffer)
 		// buffer.WriteString(h.Params.ToString(';'))
@@ -542,7 +544,11 @@ func (h *ToHeader) headerClone() Header {
 	}
 
 	if h.NameAddress == nil {
-		return &ToHeader{}
+		return &ToHeader{
+			NameAddress: &NameAddress{
+				Params: NewParams(),
+			},
+		}
 	}
 
 	newTo = &ToHeader{
@@ -555,9 +561,12 @@ func (h *ToHeader) headerClone() Header {
 		newTo.URI = h.URI.Clone()
 	}
 
-	if h.Params != nil {
+	if h.Params != nil && h.Params.Length() > 0 {
 		newTo.Params = h.Params.Clone()
+	} else {
+		newTo.Params = NewParams()
 	}
+
 	return newTo
 }
 
@@ -595,7 +604,7 @@ func (h *FromHeader) ValueStringWrite(buffer io.StringWriter) {
 
 	buffer.WriteString("<" + h.URI.Addr() + ">")
 
-	if h.Params != nil && h.Params.Length() > 0 {
+	if h.Params.Length() > 0 {
 		buffer.WriteString(";")
 		// buffer.WriteString(h.Params.ToString(';'))
 		h.Params.ToStringWrite(';', buffer)
@@ -622,7 +631,7 @@ func (h *FromHeader) headerClone() Header {
 		newFrom.URI = h.URI.Clone()
 	}
 
-	if h.Params != nil {
+	if h.Params.Length() > 0 {
 		newFrom.Params = h.Params.Clone()
 	}
 
@@ -689,7 +698,7 @@ func (h *ContactHeader) valueWrite(buffer io.StringWriter) {
 
 	buffer.WriteString("<" + h.URI.String() + ">")
 
-	if (h.Params != nil) && (h.Params.Length() > 0) {
+	if h.Params.Length() > 0 {
 		buffer.WriteString(";")
 		h.Params.ToStringWrite(';', buffer)
 	}
@@ -720,7 +729,7 @@ func (h *ContactHeader) Clone() *ContactHeader {
 		newCnt.URI = h.URI.Clone()
 	}
 
-	if h.Params != nil {
+	if h.Params.Length() > 0 {
 		newCnt.Params = h.Params.Clone()
 	}
 
@@ -872,7 +881,7 @@ type ViaHeader struct {
 	// TODO consider changing Host Port as struct Addr from transport
 	Host   string
 	Port   int // This is optional
-	Params HeaderParams
+	Params *HeaderParams
 }
 
 func (hop *ViaHeader) SentBy() string {
@@ -1151,7 +1160,7 @@ func (h *ReferredByHeader) Clone() *ReferredByHeader {
 			URI: h.URI.Clone().(*SIPURI),
 		},
 	}
-	if h.Params != nil {
+	if h.Params != nil && h.Params.Length() > 0 {
 		newTarget.Params = h.Params.Clone()
 	}
 	return newTarget

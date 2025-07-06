@@ -175,7 +175,7 @@ func (res *Response) Destination() string {
 		port = int(DefaultPort(res.Transport()))
 	}
 
-	if viaHop.Params != nil {
+	if viaHop.Params.Length() > 0 {
 		if received, ok := viaHop.Params.Get("received"); ok && received != "" {
 			host = received
 		}
@@ -223,8 +223,10 @@ func NewResponseFromRequest(
 		// https://datatracker.ietf.org/doc/html/rfc3581#section-4
 		if val, exists := h.Params.Get("rport"); exists && val == "" {
 			host, port, _ := net.SplitHostPort(req.Source())
-			h.Params.Add("rport", port)
-			h.Params.Add("received", host)
+			h.Params.Add(
+				Pair{"rport", port},
+				Pair{"received", host},
+			)
 		}
 	}
 
@@ -239,9 +241,9 @@ func NewResponseFromRequest(
 	case 100:
 		CopyHeaders("Timestamp", req, res)
 	default:
-		if _, ok := res.To().Params["tag"]; !ok {
+		if _, ok := res.To().Params.Get("tag"); !ok {
 			uuid, _ := uuid.NewRandom()
-			res.to.Params["tag"] = uuid.String()
+			res.to.Params.Add(Pair{"tag", uuid.String()})
 		}
 	}
 

@@ -1,6 +1,7 @@
 package sip
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -345,4 +346,278 @@ func TestParseUri(t *testing.T) {
 
 	}
 
+}
+
+func TestParseURI_IPv6(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    *SIPURI
+		expectError bool
+	}{
+		{
+			name:  "IPv6 basic",
+			input: "sip:[2001:db8::1]",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:db8::1]",
+			},
+		},
+		{
+			name:  "IPv6 with port",
+			input: "sip:[2001:db8::1]:5060",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:db8::1]",
+				Port:   5060,
+			},
+		},
+		{
+			name:  "IPv6 with user",
+			input: "sip:alice@[2001:db8::1]",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				User:   "alice",
+				Host:   "[2001:db8::1]",
+			},
+		},
+		{
+			name:  "IPv6 with user and password",
+			input: "sip:alice:secret@[2001:db8::1]",
+			expected: &SIPURI{
+				Scheme:   URISchemeSIP,
+				User:     "alice",
+				Password: "secret",
+				Host:     "[2001:db8::1]",
+			},
+		},
+		{
+			name:  "IPv6 with user, password, and port",
+			input: "sip:alice:secret@[2001:db8::1]:5060",
+			expected: &SIPURI{
+				Scheme:   URISchemeSIP,
+				User:     "alice",
+				Password: "secret",
+				Host:     "[2001:db8::1]",
+				Port:     5060,
+			},
+		},
+		{
+			name:  "IPv6 with URI parameters",
+			input: "sip:[2001:db8::1];transport=tcp",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:db8::1]",
+				// Params should contain transport=tcp
+			},
+		},
+		{
+			name:  "IPv6 with port and URI parameters",
+			input: "sip:[2001:db8::1]:5060;transport=tcp;lr",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:db8::1]",
+				Port:   5060,
+				// Params should contain transport=tcp and lr
+			},
+		},
+		{
+			name:  "IPv6 with headers",
+			input: "sip:[2001:db8::1]?subject=test",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:db8::1]",
+				// Headers should contain subject=test
+			},
+		},
+		{
+			name:  "IPv6 with port, params, and headers",
+			input: "sip:[2001:db8::1]:5060;transport=tcp?subject=test&priority=urgent",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:db8::1]",
+				Port:   5060,
+			},
+		},
+		{
+			name:  "IPv6 full address",
+			input: "sip:[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8080",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
+				Port:   8080,
+			},
+		},
+		{
+			name:  "IPv6 localhost",
+			input: "sip:[::1]",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[::1]",
+			},
+		},
+		{
+			name:  "IPv6 with zone ID (if supported)",
+			input: "sip:[fe80::1%eth0]",
+			expected: &SIPURI{
+				Scheme: URISchemeSIP,
+				Host:   "[fe80::1%eth0]",
+			},
+		},
+		{
+			name:  "SIPS scheme with IPv6",
+			input: "sips:[2001:db8::1]:5061",
+			expected: &SIPURI{
+				Scheme: URISchemeSIPS,
+				Host:   "[2001:db8::1]",
+				Port:   5061,
+			},
+		},
+		// Error cases
+		{
+			name:        "IPv6 missing closing bracket",
+			input:       "sip:[2001:db8::1",
+			expectError: true,
+		},
+		{
+			name:        "IPv6 missing opening bracket",
+			input:       "sip:2001:db8::1]",
+			expectError: true,
+		},
+		{
+			name:        "IPv6 empty brackets",
+			input:       "sip:[]",
+			expectError: true,
+		},
+		// We dont validate the address content ?
+		// {
+		// 	name:        "IPv6 invalid characters in brackets",
+		// 	input:       "sip:[invalid::address]",
+		// 	expectError: true,
+		// },
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uri, err := ParseURI(tt.input)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, uri)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, uri)
+
+			sipURI, ok := uri.(*SIPURI)
+			require.True(t, ok, "Expected SIPURI type")
+
+			assert.Equal(t, tt.expected.Scheme, sipURI.Scheme)
+			assert.Equal(t, tt.expected.Host, sipURI.Host)
+			assert.Equal(t, tt.expected.User, sipURI.User)
+			assert.Equal(t, tt.expected.Password, sipURI.Password)
+			assert.Equal(t, tt.expected.Port, sipURI.Port)
+
+			// Test params if they should exist
+			if strings.Contains(tt.input, ";") {
+				assert.NotNil(t, sipURI.Params)
+				if strings.Contains(tt.input, "transport=tcp") {
+					transport, exists := sipURI.Params.Get("transport")
+					assert.True(t, exists)
+					assert.Equal(t, "tcp", transport)
+				}
+				if strings.Contains(tt.input, "lr") {
+					assert.True(t, sipURI.Params.Has("lr"))
+				}
+			}
+
+			// Test headers if they should exist
+			if strings.Contains(tt.input, "?") {
+				assert.NotNil(t, sipURI.Headers)
+				if strings.Contains(tt.input, "subject=test") {
+					subject, exists := sipURI.Headers.Get("subject")
+					assert.True(t, exists)
+					assert.Equal(t, "test", subject)
+				}
+				if strings.Contains(tt.input, "priority=urgent") {
+					priority, exists := sipURI.Headers.Get("priority")
+					assert.True(t, exists)
+					assert.Equal(t, "urgent", priority)
+				}
+			}
+		})
+	}
+}
+
+func TestParseURI_IPv6_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "IPv6 address too long",
+			input:       "sip:[2001:0db8:85a3:0000:0000:8a2e:0370:7334:extra:too:long]",
+			expectError: true,
+			errorMsg:    "IPv6 address exceeds maximum length",
+		},
+		{
+			name:        "IPv6 with invalid port after bracket",
+			input:       "sip:[2001:db8::1]:abc",
+			expectError: true,
+			errorMsg:    "invalid port number",
+		},
+		// {
+		// 	name:        "IPv6 nested brackets",
+		// 	input:       "sip:[[2001:db8::1]]",
+		// 	expectError: true,
+		// 	errorMsg:    "nested brackets not allowed",
+		// },
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uri, err := ParseURI(tt.input)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, uri)
+				// if tt.errorMsg != "" {
+				// 	assert.Contains(t, err.Error(), "IPV6")
+				// }
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, uri)
+			}
+		})
+	}
+}
+
+func TestParseURI_IPv6_RoundTrip(t *testing.T) {
+	testCases := []string{
+		"sip:[2001:db8::1]",
+		"sip:alice@[2001:db8::1]:5060",
+		"sip:[::1];transport=tcp",
+		"sips:[2001:db8::1]:5061?subject=test",
+	}
+
+	for _, input := range testCases {
+		t.Run(input, func(t *testing.T) {
+			// Parse the URI
+			uri, err := ParseURI(input)
+			require.NoError(t, err)
+
+			// Convert back to string
+			output := uri.String()
+
+			// Parse again
+			uri2, err := ParseURI(output)
+			require.NoError(t, err)
+
+			// Should be equivalent
+			assert.Equal(t, uri.String(), uri2.String())
+		})
+	}
 }

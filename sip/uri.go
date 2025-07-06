@@ -64,9 +64,9 @@ type TELURI struct {
 	// User is the user part of the URI, e.g. "1234567890
 	Number string
 	// Params are the URI parameters, e.g. ";isub=1234;
-	Params HeaderParams
+	Params *HeaderParams
 	// Headers are the URI headers, e.g. "?header1=value1&header2=value2"
-	Headers HeaderParams
+	Headers *HeaderParams
 }
 
 func (u *TELURI) String() string {
@@ -80,11 +80,17 @@ func (u *TELURI) GetScheme() URIScheme {
 }
 
 func (u *TELURI) GetParams() HeaderParams {
-	return u.Params
+	if u.Params == nil {
+		u.Params = NewParams()
+	}
+	return *u.Params
 }
 
 func (u *TELURI) GetHeaders() HeaderParams {
-	return nil
+	if u.Headers == nil {
+		u.Headers = NewParams()
+	}
+	return *u.Headers
 }
 
 func (u *TELURI) GetUser() string {
@@ -123,7 +129,7 @@ func (u *TELURI) StringWrite(buffer io.StringWriter, withParam bool) {
 
 	// in address we do not need to add the params
 	if withParam {
-		if (u.Params != nil) && u.Params.Length() > 0 {
+		if u.Params.Length() > 0 {
 			buffer.WriteString(";")
 			buffer.WriteString(u.Params.ToString(';'))
 		}
@@ -133,7 +139,7 @@ func (u *TELURI) StringWrite(buffer io.StringWriter, withParam bool) {
 // Clone
 func (u *TELURI) Clone() URI {
 	c := *u
-	if u.Params != nil {
+	if u.Params.Length() > 0 {
 		c.Params = u.Params.clone()
 	}
 	return &c
@@ -154,12 +160,12 @@ func (u *TELURI) TELtoSIP(uri *SIPURI) error {
 	uri.Host = domain
 	uri.HierarhicalSlashes = u.HierarhicalSlashes
 	uri.Params = u.Params
-	uri.Params.Add("user-context", "phone")
+	uri.Params.Add(Pair{"user-context", "phone"})
 	return nil
 }
 
 func (u *TELURI) SetParams(p HeaderParams) {
-	u.Params = p
+	u.Params = &p
 }
 
 func (u *TELURI) SetHeaders(h HeaderParams) error {
@@ -221,11 +227,11 @@ type SIPURI struct {
 	// These are used to provide information about requests that may be constructed from the URI.
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
-	Params HeaderParams
+	Params *HeaderParams
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
-	Headers HeaderParams
+	Headers *HeaderParams
 }
 
 func (u *SIPURI) GetScheme() URIScheme {
@@ -269,12 +275,12 @@ func (u *SIPURI) StringWrite(buffer io.StringWriter) {
 		buffer.WriteString(strconv.Itoa(u.Port))
 	}
 
-	if (u.Params != nil) && u.Params.Length() > 0 {
+	if u.Params != nil && u.Params.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(u.Params.ToString(';'))
 	}
 
-	if (u.Headers != nil) && u.Headers.Length() > 0 {
+	if u.Headers != nil && u.Headers.Length() > 0 {
 		buffer.WriteString("?")
 		buffer.WriteString(u.Headers.ToString('&'))
 	}
@@ -283,10 +289,10 @@ func (u *SIPURI) StringWrite(buffer io.StringWriter) {
 // Clone
 func (u *SIPURI) Clone() URI {
 	c := *u
-	if u.Params != nil {
+	if u.Params.Length() > 0 {
 		c.Params = u.Params.clone()
 	}
-	if u.Headers != nil {
+	if u.Headers.Length() > 0 {
 		c.Headers = u.Headers.clone()
 	}
 	return &c
@@ -332,11 +338,17 @@ func (u *SIPURI) HostPort() string {
 }
 
 func (u *SIPURI) GetParams() HeaderParams {
-	return u.Params
+	if u.Params == nil {
+		u.Params = NewParams()
+	}
+	return *u.Params
 }
 
 func (u *SIPURI) GetHeaders() HeaderParams {
-	return u.Headers
+	if u.Headers == nil {
+		u.Headers = NewParams()
+	}
+	return *u.Headers
 }
 
 func (u *SIPURI) GetHost() string {
@@ -352,11 +364,11 @@ func (u *SIPURI) IsWildCard() bool {
 }
 
 func (u *SIPURI) SetParams(p HeaderParams) {
-	u.Params = p
+	u.Params = &p
 }
 
 func (u *SIPURI) SetHeaders(h HeaderParams) error {
-	u.Headers = h
+	u.Headers = &h
 	return nil
 }
 

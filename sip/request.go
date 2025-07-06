@@ -22,13 +22,13 @@ type Request struct {
 // No headers are added. AppendHeader should be called to add Headers.
 // r.SetBody can be called to set proper ContentLength header
 func NewRequest(method RequestMethod, recipient URI) *Request {
-	if recipient.GetParams() != nil {
+	if recipient.GetParams().Length() == 0 {
 		// mostly this are empty
 		// set params
-		recipient.SetParams(recipient.GetParams().clone())
+		recipient.SetParams(*(recipient.GetParams().clone()))
 	}
-	if recipient.GetHeaders() != nil {
-		recipient.SetParams(recipient.GetHeaders().clone())
+	if recipient.GetHeaders().Length() == 0 {
+		recipient.SetParams(*(recipient.GetHeaders().clone()))
 	}
 
 	req := &Request{}
@@ -43,7 +43,6 @@ func NewRequest(method RequestMethod, recipient URI) *Request {
 
 	return req
 }
-
 func (req *Request) Short() string {
 	if req == nil {
 		return "<nil>"
@@ -129,7 +128,7 @@ func (req *Request) Transport() string {
 		uri = &hdr.Address
 	}
 
-	if uri.GetParams() != nil {
+	if uri.GetParams().Length() > 0 {
 		if val, ok := uri.GetParams().Get("transport"); ok && val != "" {
 			tp = strings.ToUpper(val)
 		}
@@ -176,7 +175,7 @@ func (req *Request) Source() string {
 	}
 
 	// https://datatracker.ietf.org/doc/html/rfc3581#section-4
-	if viaHop.Params != nil {
+	if viaHop.Params.Length() > 0 {
 		if received, ok := viaHop.Params.Get("received"); ok && received != "" {
 			host = received
 		}

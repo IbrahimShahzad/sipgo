@@ -32,6 +32,22 @@ func TestDialogState(t *testing.T) {
 
 }
 
+func TestDialogState_String(t *testing.T) {
+	tests := []struct {
+		state    sip.DialogState
+		expected string
+	}{
+		{sip.DialogStateEstablished, "Established"},
+		{sip.DialogStateConfirmed, "Confirmed"},
+		{sip.DialogStateEnded, "Ended"},
+		{sip.DialogState(999), "Unknown Dialog State"},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, tt.state.String())
+	}
+}
+
 func BenchmarkDialogSettingState(b *testing.B) {
 	inv, _, _ := createTestInvite(b, "sip:nowhere", "udp", "127.0.0.1")
 	d := Dialog{
