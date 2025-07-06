@@ -139,7 +139,7 @@ func (u *TELURI) StringWrite(buffer io.StringWriter, withParam bool) {
 // Clone
 func (u *TELURI) Clone() URI {
 	c := *u
-	if u.Params.Length() > 0 {
+	if u.Params != nil && u.Params.Length() > 0 {
 		c.Params = u.Params.clone()
 	}
 	return &c
@@ -289,10 +289,10 @@ func (u *SIPURI) StringWrite(buffer io.StringWriter) {
 // Clone
 func (u *SIPURI) Clone() URI {
 	c := *u
-	if u.Params.Length() > 0 {
+	if u.Params != nil && u.Params.Length() > 0 {
 		c.Params = u.Params.clone()
 	}
-	if u.Headers.Length() > 0 {
+	if u.Headers != nil && u.Headers.Length() > 0 {
 		c.Headers = u.Headers.clone()
 	}
 	return &c

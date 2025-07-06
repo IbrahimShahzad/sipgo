@@ -604,7 +604,7 @@ func (h *FromHeader) ValueStringWrite(buffer io.StringWriter) {
 
 	buffer.WriteString("<" + h.URI.Addr() + ">")
 
-	if h.Params.Length() > 0 {
+	if h.Params != nil && h.Params.Length() > 0 {
 		buffer.WriteString(";")
 		// buffer.WriteString(h.Params.ToString(';'))
 		h.Params.ToStringWrite(';', buffer)
@@ -729,7 +729,7 @@ func (h *ContactHeader) Clone() *ContactHeader {
 		newCnt.URI = h.URI.Clone()
 	}
 
-	if h.Params.Length() > 0 {
+	if h.Params != nil && h.Params.Length() > 0 {
 		newCnt.Params = h.Params.Clone()
 	}
 
